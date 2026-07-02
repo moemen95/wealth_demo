@@ -41,6 +41,10 @@ export function PortfolioChart({ persona }: { persona: PersonaId }) {
                 innerRadius={60}
                 outerRadius={90}
                 paddingAngle={2}
+                // Render deterministically — the entry animation relies on
+                // requestAnimationFrame, which browsers pause for backgrounded
+                // tabs, leaving the ring undrawn until the tab regains focus.
+                isAnimationActive={false}
               >
                 {data.map((_, i) => (
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />

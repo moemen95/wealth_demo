@@ -3,15 +3,7 @@
 Auto-captured from the running app (OpenAI provider, `gpt-5-nano`) with a
 headless Playwright harness. Full-page, tool traces expanded.
 
-## Home (`/`) — proactive Agentic insights + planning trace
-| File | Persona |
-|---|---|
-| `home-first.png` | First (Alex T.) |
-| `home-middle.png` | Middle (Priya S.) |
-| `home-affluent.png` | Mass Affluent (Robert & Susan L.) — includes the allocation donut |
-
-## Compare (`/compare`) — Raw vs Skills vs Agentic, one question each
-Naming: `compare-{persona}-{q}-{slug}.png`
+Questions (used on both pages):
 
 | Q | Question |
 |---|---|
@@ -21,4 +13,19 @@ Naming: `compare-{persona}-{q}-{slug}.png`
 | q4 | My GIC is maturing — what should I do? |
 | q5 | Markets are down. Am I okay? |
 
-Personas: `first`, `middle`, `affluent` (15 files total).
+Personas: `first` (Alex T.), `middle` (Priya S.), `affluent` (Robert & Susan L.).
+
+## `homepage/` — the single-page experience (Agentic architecture)
+- `{persona}-insights.png` — proactive Agentic insight cards + planning trace
+  (affluent includes the allocation donut).
+- `{persona}-{q}-{slug}.png` — the home chat answering each of the 5 questions,
+  shown alongside the insights, with the answer's tool trace expanded.
+
+15 chat + 3 insights = 18 files.
+
+## `compare/` — Raw vs Skills vs Agentic, side-by-side
+- `{persona}-{q}-{slug}.png` — one question sent to all three architectures at
+  once (Raw hallucinates/deflects, Skills returns a grounded number, Agentic
+  contextualises with a multi-agent tool trace).
+
+3 personas × 5 questions = 15 files.

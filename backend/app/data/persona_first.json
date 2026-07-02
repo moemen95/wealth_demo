@@ -1,0 +1,28 @@
+{
+  "persona_id": "first",
+  "name": "Alex T.",
+  "age": 26,
+  "tagline": "Early career, building foundations",
+  "monthly_income": 4200,
+  "monthly_expenses": 3650,
+  "accounts": {
+    "chequing": 850,
+    "savings": 1200,
+    "credit_card_balance": 4800
+  },
+  "debts": [
+    {"type": "credit_card", "balance": 4800, "rate": 0.1999, "min_payment": 145},
+    {"type": "student_loan", "balance": 18500, "rate": 0.055, "min_payment": 210}
+  ],
+  "investments": [],
+  "allocation": {},
+  "portfolio_total": 0,
+  "performance": {},
+  "risk_profile": "moderate",
+  "advisor": null,
+  "goals": ["build_emergency_fund", "pay_down_credit_card"],
+  "upcoming_events": [
+    {"type": "paycheck", "days_out": 5, "amount": 2100},
+    {"type": "credit_card_due", "days_out": 12, "amount": 145}
+  ]
+}

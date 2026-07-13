@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Columns2, Home, TrendingUp } from "lucide-react";
-import { ProviderBadge } from "@/components/ProviderBadge";
 import { cn } from "@/lib/utils";
 
 export function TopBar({ children }: { children?: React.ReactNode }) {
@@ -24,10 +23,7 @@ export function TopBar({ children }: { children?: React.ReactNode }) {
         </NavLink>
       </nav>
 
-      <div className="ml-auto flex items-center gap-3">
-        {children}
-        <ProviderBadge />
-      </div>
+      <div className="ml-auto flex items-center gap-3">{children}</div>
     </header>
   );
 }

@@ -15,10 +15,46 @@ class ToolCall(BaseModel):
     result: Any = None
 
 
+class InsightAlternative(BaseModel):
+    label: str
+    detail: str
+    tradeoff: Optional[str] = None
+    recommended: bool = False
+
+
+class InsightSeriesPoint(BaseModel):
+    t: str
+    value: float
+
+
+class InsightSeries(BaseModel):
+    label: str
+    points: list[InsightSeriesPoint] = Field(default_factory=list)
+
+
+class InsightProjection(BaseModel):
+    unit: str = "CAD"
+    horizon_label: str = ""
+    series: list[InsightSeries] = Field(default_factory=list)
+
+
 class Insight(BaseModel):
+    kind: Literal["basic", "context", "scenario"] = "basic"
     title: str
     body: str
     cta: str
+    # Skills ("context") extras
+    context: Optional[str] = None
+    data_points: Optional[list[str]] = None
+    # Raw + Agentic ("scenario") extras
+    short_term: Optional[str] = None
+    long_term: Optional[str] = None
+    alternatives: Optional[list[InsightAlternative]] = None
+    recommended_action: Optional[str] = None
+    recommended_impact: Optional[str] = None
+    grounded: Optional[bool] = None
+    # Agentic scenario chart
+    projection: Optional[InsightProjection] = None
 
 
 class InsightsResponse(BaseModel):
@@ -59,9 +95,26 @@ class PersonaSummary(BaseModel):
     monthly_expenses: float
 
 
+class Debt(BaseModel):
+    type: str
+    balance: float
+    rate: Optional[float] = None
+
+
+class NetWorth(BaseModel):
+    cash: float
+    investments: float
+    debt: float
+    net_worth: float
+    debts: list[Debt] = Field(default_factory=list)
+    allocation: dict[str, float] = Field(default_factory=dict)
+
+
 class PersonaDetail(PersonaSummary):
     accounts: dict[str, float]
     allocation: dict[str, float]
     goals: list[str]
     upcoming_events: list[dict[str, Any]]
     advisor: Optional[str] = None
+    debts: list[Debt] = Field(default_factory=list)
+    net_worth: Optional[NetWorth] = None

@@ -1,15 +1,14 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { ArchitectureToggle } from "@/components/ArchitectureToggle";
-import { ChatInput } from "@/components/ChatInput";
-import { ChatPanel } from "@/components/ChatPanel";
+import { FinancialSnapshot } from "@/components/FinancialSnapshot";
+import { InsightDetail } from "@/components/InsightDetail";
 import { InsightsCards } from "@/components/InsightsCard";
 import { PersonaSelector } from "@/components/PersonaSelector";
-import { PortfolioChart } from "@/components/PortfolioChart";
 import { TopBar } from "@/components/TopBar";
-import { Card } from "@/components/ui/card";
-import { useChat } from "@/hooks/useChat";
 import { useDemoStore } from "@/lib/store";
+import type { Insight } from "@/lib/types";
 
 export default function HomePage() {
   const persona = useDemoStore((s) => s.persona);
@@ -17,7 +16,13 @@ export default function HomePage() {
   const setPersona = useDemoStore((s) => s.setPersona);
   const setArchitecture = useDemoStore((s) => s.setArchitecture);
 
-  const { messages, loading, send } = useChat(persona, architecture);
+  const [selected, setSelected] = useState<Insight | null>(null);
+
+  // Leaving an insight open across a persona/architecture switch would show a
+  // stale card, so drop back to the grid whenever the context changes.
+  useEffect(() => {
+    setSelected(null);
+  }, [persona, architecture]);
 
   return (
     <div className="min-h-screen">
@@ -32,24 +37,28 @@ export default function HomePage() {
             Persona
           </h2>
           <PersonaSelector value={persona} onChange={setPersona} />
-          {persona === "affluent" && <PortfolioChart persona="affluent" />}
+          {persona && <FinancialSnapshot persona={persona} />}
         </aside>
 
-        {/* Main */}
+        {/* Main — insights are the hero; click one to converse about it. */}
         <main className="space-y-6">
-          {persona && <InsightsCards persona={persona} architecture={architecture} />}
-
-          <Card className="overflow-hidden">
-            <ChatPanel
+          {persona && !selected && (
+            <InsightsCards
+              persona={persona}
               architecture={architecture}
-              messages={messages}
-              loading={loading}
-              emptyHint="Ask a follow-up, or try a suggested question below."
+              onSelect={setSelected}
             />
-            <div className="border-t bg-muted/30 p-3">
-              <ChatInput onSend={send} disabled={loading || !persona} />
-            </div>
-          </Card>
+          )}
+
+          {persona && selected && (
+            <InsightDetail
+              key={`${architecture}-${selected.title}`}
+              persona={persona}
+              architecture={architecture}
+              insight={selected}
+              onBack={() => setSelected(null)}
+            />
+          )}
         </main>
       </div>
     </div>

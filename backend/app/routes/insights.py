@@ -34,6 +34,7 @@ async def insights(
             log.exception("insights failed")
             cards = [
                 {
+                    "kind": "basic",
                     "title": "Insights unavailable",
                     "body": (
                         f"The {arch} architecture could not generate insights on "

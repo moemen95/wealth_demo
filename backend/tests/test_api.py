@@ -22,6 +22,19 @@ def test_personas_list_and_detail():
     assert detail["allocation"]
 
 
+def test_persona_detail_exposes_net_worth_and_debts():
+    first = client.get("/personas/first").json()
+    assert first["net_worth"]["net_worth"] == -21250
+    assert first["net_worth"]["cash"] == 2050
+    # first carries credit-card + student-loan debt
+    types = {d["type"] for d in first["debts"]}
+    assert {"credit_card", "student_loan"} <= types
+
+    affluent = client.get("/personas/affluent").json()
+    assert affluent["net_worth"]["net_worth"] == 2_715_000
+    assert affluent["debts"] == []
+
+
 def test_unknown_persona_404():
     assert client.get("/personas/ghost").status_code == 404
     assert client.get("/insights/ghost").status_code == 404

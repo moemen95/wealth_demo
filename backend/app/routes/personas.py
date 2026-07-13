@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from ..data_loader import VALID_PERSONAS, load_persona
-from ..models.schemas import PersonaDetail, PersonaSummary
+from ..data_loader import VALID_PERSONAS, load_persona, persona_net_worth
+from ..models.schemas import NetWorth, PersonaDetail, PersonaSummary
 
 router = APIRouter()
 
@@ -32,6 +32,7 @@ async def get_persona(persona_id: str) -> PersonaDetail:
     if persona_id not in VALID_PERSONAS:
         raise HTTPException(status_code=404, detail=f"Unknown persona '{persona_id}'")
     p = load_persona(persona_id)
+    nw = persona_net_worth(persona_id)
     return PersonaDetail(
         **_summary(p).model_dump(),
         accounts=p.get("accounts", {}),
@@ -39,4 +40,6 @@ async def get_persona(persona_id: str) -> PersonaDetail:
         goals=p.get("goals", []),
         upcoming_events=p.get("upcoming_events", []),
         advisor=p.get("advisor"),
+        debts=p.get("debts", []),
+        net_worth=NetWorth(**nw),
     )

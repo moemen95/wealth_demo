@@ -13,11 +13,11 @@ at build time, so we cache one root agent per provider and rebuild on toggle.
 from __future__ import annotations
 
 import inspect
-import json
 
 from ..data_loader import persona_summary
 from ..llm_provider import ExecutedToolCall, current_provider_name
 from ..agents.root_agent import build_root_agent
+from ._insights import parse_insight_cards
 
 APP_NAME = "wealth_insights_demo"
 
@@ -136,41 +136,30 @@ async def agentic_answer(
 async def agentic_insights(
     persona_id: str, session_id: str
 ) -> tuple[list[dict], list[ExecutedToolCall]]:
-    """Proactive planning pass: inspect the profile + upcoming_events and
-    delegate to subagents to produce 2-3 personalised insight cards."""
+    """Proactive planning pass producing rich, grounded SCENARIO cards.
+
+    Each scenario carries a short-term and long-term outlook, multiple weighed
+    alternatives (one recommended) with tradeoffs, a recommended action with its
+    projected impact, and a projection time-series that drives a comparison chart
+    in the UI — all seeded from grounded subagent tool output.
+    """
     prompt = (
         "Run a proactive planning pass for this persona. Inspect their profile "
         "and upcoming_events, delegate to the relevant subagents to fetch "
-        "grounded numbers, then produce 2-3 personalised insight cards. "
-        'Respond with ONLY a JSON array like '
-        '[{"title":"...","body":"...","cta":"..."}] — put real figures in the '
-        "body. No prose outside the JSON."
+        "grounded numbers, then produce 2-3 personalised SCENARIO cards.\n"
+        "Each scenario object must include:\n"
+        '  "title", "body" (1-2 sentence situation),\n'
+        '  "short_term" (next ~12 months) and "long_term" (~5+ years) outlooks,\n'
+        '  "alternatives": an array of 2-3 {"label","detail","tradeoff",'
+        '"recommended"(bool)} — exactly one recommended:true,\n'
+        '  "recommended_action" and "recommended_impact" (e.g. "+$18k over 5 yrs"),\n'
+        '  "projection": {"unit":"CAD","horizon_label":"5-year outlook",'
+        '"series":[{"label":<alternative label>,"points":[{"t":"Y0","value":N},'
+        '{"t":"Y1","value":N},...]}]} — one series per alternative, >=3 points '
+        "each, seeded from the real starting figures you fetched,\n"
+        '  "cta".\n'
+        "Respond with ONLY the JSON array. Use REAL figures from the tools. No "
+        "prose outside the JSON."
     )
     text, tool_calls = await _run(persona_id, session_id, prompt)
-    return _parse_insight_json(text), tool_calls
-
-
-def _parse_insight_json(text: str) -> list[dict]:
-    try:
-        start = text.index("[")
-        end = text.rindex("]") + 1
-        data = json.loads(text[start:end])
-        out = [
-            {
-                "title": str(i.get("title", "Insight")),
-                "body": str(i.get("body", "")),
-                "cta": str(i.get("cta", "Learn more")),
-            }
-            for i in data[:3]
-        ]
-        if out:
-            return out
-    except (ValueError, json.JSONDecodeError):
-        pass
-    return [
-        {
-            "title": "Personalised insight",
-            "body": text.strip()[:280] or "No structured insights returned.",
-            "cta": "Ask a question",
-        }
-    ]
+    return parse_insight_cards(text, kind="scenario", grounded=True), tool_calls

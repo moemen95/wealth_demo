@@ -21,9 +21,19 @@ export function useChat(persona: PersonaId | null, architecture: Architecture) {
     sessionId.current = newSessionId(architecture);
   }, [persona, architecture]);
 
+  const reset = useCallback(() => {
+    setMessages([]);
+    sessionId.current = newSessionId(architecture);
+  }, [architecture]);
+
   const send = useCallback(
-    async (text: string) => {
+    async (text: string, context?: string) => {
       if (!persona || !text.trim() || loading) return;
+      // Show the user's own words; send an optionally context-tagged message so
+      // the model stays anchored to the insight being discussed. Raw (stateless)
+      // only ever sees this tag — never earlier turns — which is the intended
+      // "loses context in a longer conversation" contrast.
+      const outgoing = context ? `${context}\n\n${text}` : text;
       setMessages((m) => [...m, { role: "user", content: text }]);
       setLoading(true);
       try {
@@ -31,7 +41,7 @@ export function useChat(persona: PersonaId | null, architecture: Architecture) {
           persona_id: persona,
           architecture,
           session_id: sessionId.current,
-          message: text,
+          message: outgoing,
         });
         sessionId.current = res.session_id;
         setMessages((m) => [
@@ -63,5 +73,5 @@ export function useChat(persona: PersonaId | null, architecture: Architecture) {
     [persona, architecture, loading],
   );
 
-  return { messages, loading, send };
+  return { messages, loading, send, reset };
 }

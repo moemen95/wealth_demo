@@ -12,11 +12,10 @@ Flow (per SPEC §9):
 """
 from __future__ import annotations
 
-import json
-
 from ..data_loader import persona_summary
 from ..llm_provider import ExecutedToolCall, get_provider
 from ..skills import SKILL_SCHEMAS, execute_skill
+from ._insights import parse_insight_cards
 
 SYSTEM_PROMPT = (
     "You are a wealth assistant for a Canadian bank. The active persona_id is "
@@ -45,46 +44,29 @@ def skills_answer(persona_id: str, question: str) -> tuple[str, list[ExecutedToo
 
 
 def skills_insights(persona_id: str) -> tuple[list[dict], list[ExecutedToolCall]]:
+    """Context-rich, GROUNDED insight cards.
+
+    Beyond a bare figure, each card carries a 'why this matters' context paragraph
+    and a list of supporting data_points — all sourced from real skill calls.
+    """
     provider = get_provider()
     messages = [
         {"role": "system", "content": _system(persona_id)},
         {
             "role": "user",
             "content": (
-                "Proactively surface 2-3 short, GROUNDED insight cards for me. "
-                "Call skills to fetch real numbers first, then respond with ONLY "
-                'a JSON array like [{"title":"...","body":"...","cta":"..."}]. '
-                "Put real figures in the body. No prose outside the JSON."
+                "Proactively surface 2-3 GROUNDED insight cards for me. Call skills "
+                "to fetch real numbers first. For each card include a 'context' "
+                "paragraph explaining WHY it matters for me, and a 'data_points' "
+                "array of 2-4 short supporting figures (e.g. 'Portfolio $312,450', "
+                "'YTD +6.2%'). Respond with ONLY a JSON array like "
+                '[{"title":"...","body":"...","context":"...",'
+                '"data_points":["...","..."],"cta":"..."}]. Use REAL figures from '
+                "the skills, never invent them. No prose outside the JSON."
             ),
         },
     ]
     result = provider.run_with_tools(
         messages, SKILL_SCHEMAS, execute_skill, max_rounds=1
     )
-    return _parse_insight_json(result.text), result.tool_calls
-
-
-def _parse_insight_json(text: str) -> list[dict]:
-    try:
-        start = text.index("[")
-        end = text.rindex("]") + 1
-        data = json.loads(text[start:end])
-        out = [
-            {
-                "title": str(i.get("title", "Insight")),
-                "body": str(i.get("body", "")),
-                "cta": str(i.get("cta", "Learn more")),
-            }
-            for i in data[:3]
-        ]
-        if out:
-            return out
-    except (ValueError, json.JSONDecodeError):
-        pass
-    return [
-        {
-            "title": "Grounded insight",
-            "body": text.strip()[:280] or "No structured insights returned.",
-            "cta": "Ask a question",
-        }
-    ]
+    return parse_insight_cards(result.text, kind="context", grounded=True), result.tool_calls

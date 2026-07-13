@@ -86,11 +86,11 @@ function AssistantBubble({ message, isLast }: { message: ChatMessage; isLast: bo
       >
         <div className="whitespace-pre-wrap break-words">{text}</div>
       </div>
-      <div className="flex items-center gap-2 pl-1 text-[11px] text-muted-foreground">
-        {message.architecture && <ArchitectureBadge architecture={message.architecture} />}
-        {message.provider && <span>· {message.provider}</span>}
-        {message.timingMs != null && <span>· {message.timingMs} ms</span>}
-      </div>
+      {message.architecture && (
+        <div className="pl-1">
+          <ArchitectureBadge architecture={message.architecture} />
+        </div>
+      )}
       {message.toolCalls && message.toolCalls.length > 0 && (
         <div className="w-full max-w-[95%]">
           <ToolTrace calls={message.toolCalls} />

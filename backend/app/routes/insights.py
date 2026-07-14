@@ -19,12 +19,15 @@ router = APIRouter()
 async def insights(
     persona_id: str,
     arch: Architecture = Query("agentic"),
+    session_id: str | None = Query(None),
 ) -> InsightsResponse:
     if persona_id not in VALID_PERSONAS:
         raise HTTPException(status_code=404, detail=f"Unknown persona '{persona_id}'")
 
     provider = current_provider_name()
-    session_id = f"insights-{persona_id}-{uuid.uuid4().hex[:8]}"
+    # Agentic insights honor the client's collected context, so they run on the
+    # caller's stable session; other architectures stay stateless (throwaway id).
+    session_id = session_id or f"insights-{persona_id}-{uuid.uuid4().hex[:8]}"
 
     with Timer() as t:
         try:

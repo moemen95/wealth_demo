@@ -46,6 +46,8 @@ class Insight(BaseModel):
     # Skills ("context") extras
     context: Optional[str] = None
     data_points: Optional[list[str]] = None
+    # Agentic: assumptions stated when the client declined to share goals
+    assumptions: Optional[list[str]] = None
     # Raw + Agentic ("scenario") extras
     short_term: Optional[str] = None
     long_term: Optional[str] = None

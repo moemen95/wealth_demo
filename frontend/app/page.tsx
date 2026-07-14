@@ -7,6 +7,7 @@ import { InsightDetail } from "@/components/InsightDetail";
 import { InsightsCards } from "@/components/InsightsCard";
 import { PersonaSelector } from "@/components/PersonaSelector";
 import { TopBar } from "@/components/TopBar";
+import { useAgenticSession } from "@/hooks/useAgenticSession";
 import { useDemoStore } from "@/lib/store";
 import type { Insight } from "@/lib/types";
 
@@ -18,11 +19,22 @@ export default function HomePage() {
 
   const [selected, setSelected] = useState<Insight | null>(null);
 
+  // One shared Agentic memory session for this persona, used by discovery,
+  // insights, and the drill-in chat. `clear()` wipes it and restarts discovery.
+  const { sessionId: agenticSessionId, clear: clearAgentic } =
+    useAgenticSession(persona);
+  const isAgentic = architecture === "agentic";
+
   // Leaving an insight open across a persona/architecture switch would show a
   // stale card, so drop back to the grid whenever the context changes.
   useEffect(() => {
     setSelected(null);
   }, [persona, architecture]);
+
+  const handleClearMemory = () => {
+    setSelected(null);
+    clearAgentic();
+  };
 
   return (
     <div className="min-h-screen">
@@ -47,15 +59,18 @@ export default function HomePage() {
               persona={persona}
               architecture={architecture}
               onSelect={setSelected}
+              sessionId={isAgentic ? agenticSessionId : undefined}
+              onClearMemory={isAgentic ? handleClearMemory : undefined}
             />
           )}
 
           {persona && selected && (
             <InsightDetail
-              key={`${architecture}-${selected.title}`}
+              key={`${architecture}-${agenticSessionId}-${selected.title}`}
               persona={persona}
               architecture={architecture}
               insight={selected}
+              sessionId={isAgentic ? agenticSessionId : undefined}
               onBack={() => setSelected(null)}
             />
           )}

@@ -9,22 +9,30 @@ import type { Architecture, ChatMessage, PersonaId } from "@/lib/types";
  * Owns one conversation for a (persona, architecture) pair. A stable session_id
  * is minted per pair so the Agentic architecture can demonstrate memory across
  * turns; changing persona/arch starts a fresh conversation.
+ *
+ * Pass `externalSessionId` to bind the conversation to a caller-owned session
+ * (the shared Agentic memory) so the chat reads/writes the same memory as
+ * discovery + insights; when it changes (e.g. Clear memory), the chat resets.
  */
-export function useChat(persona: PersonaId | null, architecture: Architecture) {
+export function useChat(
+  persona: PersonaId | null,
+  architecture: Architecture,
+  externalSessionId?: string,
+) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
-  const sessionId = useRef<string>(newSessionId(architecture));
+  const sessionId = useRef<string>(externalSessionId ?? newSessionId(architecture));
 
-  // Reset conversation when persona or architecture changes.
+  // Reset conversation when persona, architecture, or the shared session change.
   useEffect(() => {
     setMessages([]);
-    sessionId.current = newSessionId(architecture);
-  }, [persona, architecture]);
+    sessionId.current = externalSessionId ?? newSessionId(architecture);
+  }, [persona, architecture, externalSessionId]);
 
   const reset = useCallback(() => {
     setMessages([]);
-    sessionId.current = newSessionId(architecture);
-  }, [architecture]);
+    sessionId.current = externalSessionId ?? newSessionId(architecture);
+  }, [architecture, externalSessionId]);
 
   const send = useCallback(
     async (text: string, context?: string) => {

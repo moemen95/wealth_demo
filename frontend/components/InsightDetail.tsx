@@ -27,13 +27,16 @@ export function InsightDetail({
   architecture,
   insight,
   onBack,
+  sessionId,
 }: {
   persona: PersonaId;
   architecture: Architecture;
   insight: Insight;
   onBack: () => void;
+  /** Shared Agentic memory session so the chat recalls collected context. */
+  sessionId?: string;
 }) {
-  const { messages, loading, send } = useChat(persona, architecture);
+  const { messages, loading, send } = useChat(persona, architecture, sessionId);
   const context = insightContext(insight);
 
   return (

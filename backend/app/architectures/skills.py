@@ -57,12 +57,14 @@ def skills_insights(persona_id: str) -> tuple[list[dict], list[ExecutedToolCall]
             "content": (
                 "Proactively surface 2-3 GROUNDED insight cards for me. Call skills "
                 "to fetch real numbers first. For each card include a 'context' "
-                "paragraph explaining WHY it matters for me, and a 'data_points' "
-                "array of 2-4 short supporting figures (e.g. 'Portfolio $312,450', "
-                "'YTD +6.2%'). Respond with ONLY a JSON array like "
+                "paragraph explaining WHY it matters for me, a 'data_points' array "
+                "of 2-4 short supporting figures (e.g. 'Portfolio $312,450', "
+                "'YTD +6.2%'), and a concrete 'recommended_action' I should take. "
+                "Respond with ONLY a JSON array like "
                 '[{"title":"...","body":"...","context":"...",'
-                '"data_points":["...","..."],"cta":"..."}]. Use REAL figures from '
-                "the skills, never invent them. No prose outside the JSON."
+                '"data_points":["...","..."],"recommended_action":"...",'
+                '"cta":"..."}]. Use REAL figures from the skills, never invent '
+                "them. No prose outside the JSON."
             ),
         },
     ]

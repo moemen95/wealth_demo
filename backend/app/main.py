@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .llm_provider import current_provider_name, provider_label
-from .routes import chat, insights, personas, provider
+from .routes import agentic, chat, insights, personas, provider
 
 logging.basicConfig(level=logging.INFO)
 
@@ -33,6 +33,7 @@ app.add_middleware(
 app.include_router(personas.router, tags=["personas"])
 app.include_router(insights.router, tags=["insights"])
 app.include_router(chat.router, tags=["chat"])
+app.include_router(agentic.router, tags=["agentic"])
 app.include_router(provider.router, tags=["provider"])
 
 

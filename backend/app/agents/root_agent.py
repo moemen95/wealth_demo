@@ -10,6 +10,7 @@ from __future__ import annotations
 from google.adk.agents import LlmAgent
 
 from .budgeting_agent import build_budgeting_agent
+from .context_agent import build_context_agent
 from .education_agent import build_education_agent
 from .model_resolver import resolve_adk_model
 from .portfolio_agent import build_portfolio_agent
@@ -17,17 +18,20 @@ from .portfolio_agent import build_portfolio_agent
 ROOT_INSTRUCTION = (
     "You are the orchestrator for a wealth assistant serving a Canadian bank. "
     "The active persona_id is '{persona_id}'. Profile: {persona_profile}.\n"
+    "The client's stated goals/context so far: '{client_context}'.\n"
     "Always:\n"
     "1. Ground every number in a tool call (via a subagent). Never invent "
     "balances, rates, or performance figures.\n"
     "2. Route portfolio questions to portfolio_agent, budgeting/debt questions "
-    "to budgeting_agent, and education/market/advisor questions to "
-    "education_agent.\n"
+    "to budgeting_agent, education/market/advisor questions to education_agent, "
+    "and goal/life-plan/planning-preference questions to context_agent.\n"
     "3. For complex questions (e.g. 'pay down debt or invest?'), gather from "
     "MULTIPLE subagents before answering.\n"
-    "4. For the affluent persona, offer a warm handoff to a human advisor when "
+    "4. Tailor every answer to the client's stated context above when it is "
+    "present; if it is empty, gently invite them to share their goals.\n"
+    "5. For the affluent persona, offer a warm handoff to a human advisor when "
     "volatility or complex planning is discussed.\n"
-    "5. Match tone to persona: encouraging (first), reassuring (middle), "
+    "6. Match tone to persona: encouraging (first), reassuring (middle), "
     "premium/concise (affluent)."
 )
 
@@ -41,5 +45,6 @@ def build_root_agent() -> LlmAgent:
             build_portfolio_agent(),
             build_budgeting_agent(),
             build_education_agent(),
+            build_context_agent(),
         ],
     )

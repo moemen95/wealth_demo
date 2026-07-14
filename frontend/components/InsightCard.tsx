@@ -1,15 +1,7 @@
 "use client";
 
-import {
-  ArrowRight,
-  CheckCircle2,
-  Clock,
-  Info,
-  Sparkles,
-  TrendingUp,
-} from "lucide-react";
+import { ArrowRight, Clock, Info, Sparkles, TrendingUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { InsightScenarioChart } from "@/components/InsightScenarioChart";
 import { cn } from "@/lib/utils";
 import type { Insight } from "@/lib/types";
 
@@ -131,70 +123,24 @@ function ContextBody({ insight }: { insight: Insight }) {
 }
 
 function ScenarioBody({ insight }: { insight: Insight }) {
+  if (!insight.short_term && !insight.long_term) return null;
   return (
-    <>
-      {(insight.short_term || insight.long_term) && (
-        <div className="grid gap-2 sm:grid-cols-2">
-          {insight.short_term && (
-            <HorizonBlock
-              icon={<Clock className="h-3.5 w-3.5" />}
-              label="Short term"
-              text={insight.short_term}
-            />
-          )}
-          {insight.long_term && (
-            <HorizonBlock
-              icon={<TrendingUp className="h-3.5 w-3.5" />}
-              label="Long term"
-              text={insight.long_term}
-            />
-          )}
-        </div>
+    <div className="grid gap-2 sm:grid-cols-2">
+      {insight.short_term && (
+        <HorizonBlock
+          icon={<Clock className="h-3.5 w-3.5" />}
+          label="Short term"
+          text={insight.short_term}
+        />
       )}
-
-      {insight.alternatives && insight.alternatives.length > 0 && (
-        <div className="space-y-1.5">
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Alternatives
-          </div>
-          {insight.alternatives.map((alt, i) => (
-            <div
-              key={i}
-              className={cn(
-                "rounded-md border p-2.5",
-                alt.recommended
-                  ? "border-primary/40 bg-primary/5"
-                  : "bg-card",
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-foreground">
-                  {alt.label}
-                </span>
-                {alt.recommended && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
-                    <CheckCircle2 className="h-3 w-3" />
-                    Recommended
-                  </span>
-                )}
-              </div>
-              {alt.detail && (
-                <p className="mt-0.5 text-xs text-muted-foreground">{alt.detail}</p>
-              )}
-              {alt.tradeoff && (
-                <p className="mt-1 text-[11px] font-medium text-amber-700 dark:text-amber-400">
-                  Tradeoff: {alt.tradeoff}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
+      {insight.long_term && (
+        <HorizonBlock
+          icon={<TrendingUp className="h-3.5 w-3.5" />}
+          label="Long term"
+          text={insight.long_term}
+        />
       )}
-
-      {insight.projection && insight.projection.series.length > 0 && (
-        <InsightScenarioChart projection={insight.projection} />
-      )}
-    </>
+    </div>
   );
 }
 

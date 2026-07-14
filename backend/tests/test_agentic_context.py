@@ -28,6 +28,22 @@ def test_save_client_context_declined():
     assert tc.state["client_context_declined"] is True
 
 
+def test_save_client_context_accumulates_log():
+    tc = _FakeToolContext()
+    save_client_context("retire at 55", tool_context=tc)
+    save_client_context("retire at 55, fund kids' school", tool_context=tc)
+    save_client_context("", declined=True, tool_context=tc)
+    log = tc.state["context_log"]
+    assert [e["context"] for e in log] == [
+        "retire at 55",
+        "retire at 55, fund kids' school",
+        "",
+    ]
+    assert log[-1]["declined"] is True
+    # The active context is always the latest saved value.
+    assert tc.state["client_context"] == ""
+
+
 def test_scenario_assumptions_are_parsed():
     text = json.dumps([{"title": "T", "body": "B",
                         "assumptions": ["assume retirement at 60", "moderate risk"]}])

@@ -116,7 +116,7 @@ async function main() {
   done.push("03_conversation_memory");
 
   // Back to the grid, then wipe the agentic memory → discovery restarts.
-  await page.getByRole("button", { name: /Back to insights/ }).click();
+  await page.getByRole("button", { name: /Back to scenarios/ }).click();
   await page.waitForTimeout(1000);
   await clearMemory(page);
   await waitDiscovery(page);

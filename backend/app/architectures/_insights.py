@@ -108,11 +108,11 @@ def _coerce_card(item: dict, *, kind: str, grounded: bool | None) -> dict:
         card["data_points"] = _str_list(item.get("data_points"))
 
     if kind == "scenario":
+        # Agentic scenarios now carry only a recommended action; the cross-scenario
+        # comparison chart is computed separately (see agentic_adk.build_analysis).
         card["assumptions"] = _str_list(item.get("assumptions"))
         card["short_term"] = _s(item.get("short_term")) or None
         card["long_term"] = _s(item.get("long_term")) or None
-        card["alternatives"] = _coerce_alternatives(item.get("alternatives"))
-        card["projection"] = _coerce_projection(item.get("projection"))
 
     # Context and scenario cards both surface a recommended action.
     if kind in ("context", "scenario"):

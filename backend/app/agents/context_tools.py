@@ -24,4 +24,10 @@ def save_client_context(
     if tool_context is not None:
         tool_context.state["client_context"] = context or ""
         tool_context.state["client_context_declined"] = bool(declined)
+        # Also keep an append-only log of everything saved this session so the UI
+        # can show the full history of answers that shaped the insights. Reassign
+        # (don't mutate in place) so ADK records the state delta.
+        log = list(tool_context.state.get("context_log", []))
+        log.append({"context": context or "", "declined": bool(declined)})
+        tool_context.state["context_log"] = log
     return {"saved": True, "context": context or "", "declined": bool(declined)}

@@ -56,6 +56,22 @@ class ClearRequest(BaseModel):
     session_id: str
 
 
+class MemoryEntry(BaseModel):
+    context: str
+    declined: bool = False
+
+
+class MemoryResponse(BaseModel):
+    client_context: str = ""
+    declined: bool = False
+    entries: list[MemoryEntry] = []
+
+
+class MemoryRequest(BaseModel):
+    persona_id: str
+    session_id: str
+
+
 def _check(persona_id: str) -> None:
     if persona_id not in VALID_PERSONAS:
         raise HTTPException(status_code=404, detail=f"Unknown persona '{persona_id}'")
@@ -119,3 +135,11 @@ async def clear(req: ClearRequest) -> dict:
     _check(req.persona_id)
     await agentic_adk.agentic_clear_memory(req.persona_id, req.session_id)
     return {"ok": True}
+
+
+@router.post("/agentic/memory", response_model=MemoryResponse)
+async def memory(req: MemoryRequest) -> MemoryResponse:
+    """Read-only view of the collected context that tailors this session's insights."""
+    _check(req.persona_id)
+    data = await agentic_adk.read_session_memory(req.persona_id, req.session_id)
+    return MemoryResponse(**data)

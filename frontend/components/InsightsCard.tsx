@@ -1,15 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Eraser, Lightbulb, Loader2 } from "lucide-react";
+import { ArrowLeft, Eraser, Lightbulb, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AgenticDiscovery } from "@/components/AgenticDiscovery";
+import { AgenticMemory } from "@/components/AgenticMemory";
+import { ChatInput } from "@/components/ChatInput";
+import { ChatPanel } from "@/components/ChatPanel";
+import { InsightAnalysis } from "@/components/InsightAnalysis";
 import { InsightCard } from "@/components/InsightCard";
+import { insightContext } from "@/components/InsightDetail";
 import { ToolTrace } from "@/components/ToolTrace";
+import { useChat } from "@/hooks/useChat";
 import { api } from "@/lib/api";
 import type {
   AgenticDiscovery as AgenticDiscoveryData,
+  AgenticMemory as AgenticMemoryData,
   Architecture,
   Insight,
   InsightsResponse,
@@ -38,7 +45,6 @@ export function InsightsCards({
       <AgenticInsights
         persona={persona}
         sessionId={sessionId!}
-        onSelect={onSelect}
         compact={compact}
         onClearMemory={onClearMemory}
       />
@@ -103,21 +109,41 @@ type Phase = "loading-discovery" | "discovery" | "saving" | "insights";
 function AgenticInsights({
   persona,
   sessionId,
-  onSelect,
   compact,
   onClearMemory,
 }: {
   persona: PersonaId;
   sessionId: string;
-  onSelect: (insight: Insight) => void;
   compact: boolean;
   onClearMemory?: () => void;
 }) {
   const [phase, setPhase] = useState<Phase>("loading-discovery");
   const [discovery, setDiscovery] = useState<AgenticDiscoveryData | null>(null);
   const [insights, setInsights] = useState<InsightsResponse | null>(null);
+  const [memory, setMemory] = useState<AgenticMemoryData | null>(null);
   const [followUp, setFollowUp] = useState("");
+  // The scenario the user drilled into for a conversation (comparison stays pinned).
+  const [selected, setSelected] = useState<Insight | null>(null);
   const runId = useRef(0);
+
+  // The drill-in chat shares the same Agentic session so it recalls collected
+  // context; changing session (Clear memory / persona) resets the conversation.
+  const chat = useChat(persona, "agentic", sessionId);
+  useEffect(() => {
+    setSelected(null);
+  }, [sessionId]);
+
+  const refreshMemory = useCallback(
+    async (rid: number) => {
+      try {
+        const m = await api.agenticMemory(persona, sessionId);
+        if (runId.current === rid) setMemory(m);
+      } catch {
+        /* memory panel is best-effort */
+      }
+    },
+    [persona, sessionId],
+  );
 
   const fetchInsights = useCallback(
     async (rid: number) => {
@@ -127,12 +153,13 @@ function AgenticInsights({
         if (runId.current === rid) {
           setInsights(d);
           setPhase("insights");
+          refreshMemory(rid);
         }
       } catch {
         if (runId.current === rid) setPhase("insights");
       }
     },
-    [persona, sessionId],
+    [persona, sessionId, refreshMemory],
   );
 
   // Start (or restart, e.g. after Clear memory) with a discovery request.
@@ -141,6 +168,7 @@ function AgenticInsights({
     setPhase("loading-discovery");
     setDiscovery(null);
     setInsights(null);
+    setMemory(null);
     setFollowUp("");
     api
       .agenticDiscovery(persona, sessionId)
@@ -189,6 +217,12 @@ function AgenticInsights({
         onClearMemory={onClearMemory}
       />
 
+      {memory && (
+        <div className="mb-4">
+          <AgenticMemory memory={memory} />
+        </div>
+      )}
+
       {phase === "loading-discovery" && (
         <Card className="animate-pulse">
           <CardContent className="space-y-2 p-4">
@@ -208,28 +242,64 @@ function AgenticInsights({
         />
       )}
 
-      {(phase === "saving" || phase === "insights") && (
-        <>
+      {(phase === "saving" || phase === "insights") && !selected && (
+        <div className="space-y-4">
           {phase === "insights" && followUp && (
-            <div className="mb-3">
-              <AgenticDiscovery
-                question={followUp}
-                options={[]}
-                onAnswer={answer}
-                compact
-              />
-            </div>
+            <AgenticDiscovery
+              question={followUp}
+              options={[]}
+              onAnswer={answer}
+              compact
+            />
           )}
           <InsightGrid
             loading={phase === "saving"}
             insights={insights?.insights}
-            onSelect={onSelect}
+            onSelect={setSelected}
             compact={compact}
           />
+          {phase === "insights" && insights?.analysis && (
+            <InsightAnalysis analysis={insights.analysis} />
+          )}
           {phase === "insights" && insights && (
             <ToolTrace calls={insights.tool_calls} />
           )}
-        </>
+        </div>
+      )}
+
+      {phase === "insights" && selected && (
+        <div className="space-y-4">
+          <button
+            onClick={() => {
+              setSelected(null);
+              chat.reset();
+            }}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to scenarios
+          </button>
+
+          {insights?.analysis && <InsightAnalysis analysis={insights.analysis} compact />}
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <InsightCard insight={selected} pinned />
+            <Card className="flex flex-col overflow-hidden">
+              <ChatPanel
+                architecture="agentic"
+                messages={chat.messages}
+                loading={chat.loading}
+                emptyHint={`Ask about "${selected.title}".`}
+              />
+              <div className="border-t bg-muted/30 p-3">
+                <ChatInput
+                  onSend={(text) => chat.send(text, insightContext(selected))}
+                  disabled={chat.loading}
+                />
+              </div>
+            </Card>
+          </div>
+        </div>
       )}
     </section>
   );

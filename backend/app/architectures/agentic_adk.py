@@ -173,6 +173,27 @@ async def read_session_context(persona_id: str, session_id: str) -> dict:
     }
 
 
+async def read_session_memory(persona_id: str, session_id: str) -> dict:
+    """Return the full agentic memory for the UI: the active tailoring context,
+    the declined flag, and the append-only log of every answer saved this session.
+    """
+    svc = _get_session_service()
+    session = await _maybe_await(
+        svc.get_session(app_name=APP_NAME, user_id=persona_id, session_id=session_id)
+    )
+    state = getattr(session, "state", None) or {}
+    entries = [
+        {"context": str(e.get("context", "")), "declined": bool(e.get("declined", False))}
+        for e in (state.get("context_log") or [])
+        if isinstance(e, dict)
+    ]
+    return {
+        "client_context": state.get("client_context", "") or "",
+        "declined": bool(state.get("client_context_declined", False)),
+        "entries": entries,
+    }
+
+
 async def agentic_discovery(
     persona_id: str, session_id: str
 ) -> tuple[dict, list[ExecutedToolCall]]:
@@ -249,14 +270,23 @@ async def agentic_clear_memory(persona_id: str, session_id: str) -> None:
     )
 
 
+_METRIC_LABELS = {
+    "portfolio_value": "Projected portfolio value",
+    "annual_income": "Projected annual income",
+    "after_tax_value": "Projected after-tax value",
+}
+
+
 async def agentic_insights(
     persona_id: str, session_id: str
-) -> tuple[list[dict], list[ExecutedToolCall]]:
-    """Proactive planning pass producing rich, grounded SCENARIO cards.
+) -> tuple[list[dict], dict | None, list[ExecutedToolCall]]:
+    """Proactive planning pass producing SCENARIO cards + a comparison analysis.
 
-    Tailored to the client's collected context (from session memory). If the client
-    declined to share goals, the model instead assumes scenarios from their profile
-    and states those assumptions on each card.
+    The LLM proposes 2-3 goal-tailored scenarios (narrative + recommended action +
+    an assumed annual return & monthly contribution) and picks the comparison
+    metric. The projected outcomes that drive the comparison chart are then computed
+    DETERMINISTICALLY in Python (``project_strategy``) — never by the LLM — so the
+    chart is accurate. Returns (cards, analysis, tool_calls).
     """
     stored = await read_session_context(persona_id, session_id)
     ctx, declined = stored["client_context"], stored["declined"]
@@ -264,9 +294,9 @@ async def agentic_insights(
     if declined:
         context_line = (
             "The client DECLINED to share specific goals. Make reasonable "
-            "assumptions from their profile (age, risk, goals) and, for EACH card, "
-            'add an "assumptions" array of 1-2 short strings stating exactly what '
-            "you assumed. Then build the scenario around those assumptions.\n"
+            "assumptions from their profile (age, risk, goals) and, for EACH "
+            'scenario, add an "assumptions" array of 1-2 short strings stating '
+            "exactly what you assumed.\n"
         )
     elif ctx:
         context_line = (
@@ -277,28 +307,166 @@ async def agentic_insights(
         context_line = ""
 
     prompt = (
-        "Run a proactive planning pass for this persona. Inspect their profile "
-        "and upcoming_events, delegate to the relevant subagents to fetch "
-        "grounded numbers, then produce 2-3 personalised SCENARIO cards.\n"
+        "Run a proactive planning pass for this persona. Inspect their profile and "
+        "upcoming_events, delegate to subagents for grounded numbers, then propose "
+        "exactly 3 goal-tailored investment SCENARIOS to compare.\n"
         f"{context_line}"
-        "Each scenario object must include:\n"
-        '  "title", "body" (1-2 sentence situation),\n'
-        '  "assumptions": array of short strings (ONLY when the client declined to '
-        "share goals; otherwise omit or use []),\n"
-        '  "short_term" (next ~12 months) and "long_term" (~5+ years) outlooks,\n'
-        '  "alternatives": an array of 2-3 {"label","detail","tradeoff",'
-        '"recommended"(bool)} — exactly one recommended:true,\n'
-        '  "recommended_action" and "recommended_impact" (e.g. "+$18k over 5 yrs"),\n'
-        '  "projection": {"unit":"CAD","horizon_label":"5-year outlook",'
-        '"series":[{"label":<alternative label>,"points":[{"t":"Y0","value":N},'
-        '{"t":"Y1","value":N},...]}]} — one series per alternative, >=3 points '
-        "each, seeded from the real starting figures you fetched,\n"
-        '  "cta".\n'
-        "Respond with ONLY the JSON array. Use REAL figures from the tools. No "
-        "prose outside the JSON."
+        "Respond with ONLY a JSON OBJECT (no prose) of this shape:\n"
+        "{\n"
+        '  "metric": "portfolio_value" | "annual_income" | "after_tax_value",\n'
+        '  "metric_label": "<short axis label matching the metric>",\n'
+        '  "horizon_years": <integer 5-20>,\n'
+        '  "withdrawal_rate": <0.02-0.08, only relevant if metric=annual_income>,\n'
+        '  "tax_rate": <0.0-0.5, only relevant if metric=after_tax_value>,\n'
+        '  "recommended_scenario": "<title of the single best scenario>",\n'
+        '  "recommendation_rationale": "<1-2 sentences on why it fits best>",\n'
+        '  "comparison_summary": "<1-2 sentences comparing the three>",\n'
+        '  "scenarios": [ {\n'
+        '     "title": "...", "body": "1-2 sentence situation",\n'
+        '     "short_term": "next ~12 months", "long_term": "~5+ years",\n'
+        '     "recommended_action": "the one action to take",\n'
+        '     "assumptions": ["..."]  (ONLY when the client declined; else []),\n'
+        '     "annual_return": <0.0-0.12 nominal return for this strategy>,\n'
+        '     "monthly_contribution": <CAD/month added; use the real surplus>\n'
+        "  } ]  (exactly 3, each with a DIFFERENT strategy/return)\n"
+        "}\n"
+        "Pick the metric that best fits the goal. Choose each scenario's "
+        "annual_return to reflect its risk (e.g. conservative vs growth). Use REAL "
+        "figures from the tools for balances and surplus."
     )
     text, tool_calls = await _run_with_retry(persona_id, session_id, prompt)
-    return parse_insight_cards(text, kind="scenario", grounded=True), tool_calls
+    cards, analysis = _build_scenarios_and_analysis(
+        persona_id, text, declined=declined
+    )
+    return cards, analysis, tool_calls
+
+
+def _build_scenarios_and_analysis(
+    persona_id: str, text: str, *, declined: bool
+) -> tuple[list[dict], dict | None]:
+    """Parse the agentic JSON object → scenario cards + a computed comparison.
+
+    Falls back to the tolerant array parser if the model didn't return the object
+    shape, so the UI always renders something.
+    """
+    from ..skills.projection import project_strategy
+
+    obj = _parse_agentic_object(text)
+    if obj is None:
+        return parse_insight_cards(text, kind="scenario", grounded=True), None
+
+    metric = obj.get("metric", "portfolio_value")
+    if metric not in _METRIC_LABELS:
+        metric = "portfolio_value"
+    horizon_years = obj.get("horizon_years", 10)
+    withdrawal_rate = obj.get("withdrawal_rate", 0.04)
+    tax_rate = obj.get("tax_rate", 0.0)
+    raw_scenarios = [s for s in (obj.get("scenarios") or []) if isinstance(s, dict)][:3]
+
+    # The comparison is only meaningful if the scenarios use DIFFERENT returns.
+    # Honor the agent's returns when they're distinct; otherwise spread them across
+    # a conservative→growth ladder so the three lines actually diverge.
+    def _num(x):
+        try:
+            return round(float(x), 4)
+        except (TypeError, ValueError):
+            return None
+
+    provided = [_num(sc.get("annual_return")) for sc in raw_scenarios]
+    distinct = {r for r in provided if r is not None}
+    _ladder = [0.035, 0.06, 0.085]
+    use_ladder = len(distinct) < len(raw_scenarios) or len(distinct) < 2
+
+    cards: list[dict] = []
+    series: list[dict] = []
+    summary: list[dict] = []
+    for i, sc in enumerate(raw_scenarios):
+        title = str(sc.get("title") or "Scenario").strip()
+        annual_return = (
+            _ladder[min(i, len(_ladder) - 1)]
+            if use_ladder or provided[i] is None
+            else provided[i]
+        )
+        try:
+            proj = project_strategy(
+                persona_id,
+                annual_return=annual_return,
+                monthly_contribution=(
+                    float(sc["monthly_contribution"])
+                    if sc.get("monthly_contribution") is not None
+                    else None
+                ),
+                years=int(horizon_years),
+                metric=metric,
+                withdrawal_rate=float(withdrawal_rate),
+                tax_rate=float(tax_rate),
+            )
+        except (TypeError, ValueError):
+            proj = project_strategy(persona_id, annual_return=annual_return,
+                                    years=int(horizon_years), metric=metric)
+
+        card = {
+            "kind": "scenario",
+            "title": title,
+            "body": str(sc.get("body") or "").strip(),
+            "cta": "Discuss this scenario",
+            "grounded": True,
+            "short_term": str(sc.get("short_term") or "").strip() or None,
+            "long_term": str(sc.get("long_term") or "").strip() or None,
+            "recommended_action": str(sc.get("recommended_action") or "").strip() or None,
+            # Accurate impact derived from the deterministic projection. We show
+            # the assumed investment return (not a CAGR of the balance, which
+            # would be inflated by contribution inflows).
+            "recommended_impact": (
+                f"{_METRIC_LABELS[metric]} ≈ ${proj['final_value']:,.0f} in "
+                f"{proj['years']} yrs (assumes {proj['annual_return']*100:.1f}%/yr return)"
+            ),
+        }
+        if declined:
+            assumptions = [str(a).strip() for a in (sc.get("assumptions") or []) if str(a).strip()]
+            card["assumptions"] = assumptions or None
+        cards.append(card)
+
+        series.append({"label": title, "points": proj["series"]})
+        summary.append(
+            {
+                "scenario": title,
+                "final_value": proj["final_value"],
+                "total_contributions": proj["total_contributions"],
+                # Report the assumed investment return per scenario (clear + honest),
+                # not the contribution-inflated balance CAGR.
+                "cagr": proj["annual_return"],
+            }
+        )
+
+    if not cards:
+        return parse_insight_cards(text, kind="scenario", grounded=True), None
+
+    metric_label = str(obj.get("metric_label") or _METRIC_LABELS[metric]).strip()
+    analysis = {
+        "metric_label": metric_label,
+        "unit": "CAD",
+        "horizon_label": f"{int(horizon_years)}-year outlook",
+        "series": series,
+        "summary": summary,
+        "recommended_scenario": str(obj.get("recommended_scenario") or "").strip() or None,
+        "recommendation_rationale": str(obj.get("recommendation_rationale") or "").strip() or None,
+        "comparison_summary": str(obj.get("comparison_summary") or "").strip() or None,
+    }
+    return cards, analysis
+
+
+def _parse_agentic_object(text: str) -> dict | None:
+    """Extract the agentic insights JSON object (first { … last })."""
+    try:
+        start = text.index("{")
+        end = text.rindex("}") + 1
+        obj = json.loads(text[start:end])
+        if isinstance(obj, dict) and obj.get("scenarios"):
+            return obj
+    except (ValueError, json.JSONDecodeError):
+        pass
+    return None
 
 
 def _parse_discovery(text: str) -> dict:

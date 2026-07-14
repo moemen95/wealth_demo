@@ -41,11 +41,15 @@ async def run_answer(
 
 async def run_insights(
     architecture: str, persona_id: str, session_id: str
-) -> tuple[list[dict], list[ExecutedToolCall]]:
+) -> tuple[list[dict], list[ExecutedToolCall], dict | None]:
+    """Return (cards, executed_tool_calls, analysis). Only Agentic sets analysis."""
     if architecture == "raw":
-        return await run_in_threadpool(raw_prompt.raw_insights, persona_id)
+        cards, executed = await run_in_threadpool(raw_prompt.raw_insights, persona_id)
+        return cards, executed, None
     if architecture == "skills":
-        return await run_in_threadpool(skills_arch.skills_insights, persona_id)
+        cards, executed = await run_in_threadpool(skills_arch.skills_insights, persona_id)
+        return cards, executed, None
     if architecture == "agentic":
-        return await agentic_adk.agentic_insights(persona_id, session_id)
+        cards, analysis, executed = await agentic_adk.agentic_insights(persona_id, session_id)
+        return cards, executed, analysis
     raise ValueError(f"Unknown architecture: {architecture}")

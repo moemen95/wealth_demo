@@ -32,57 +32,32 @@ def test_context_kind_populates_context_and_data_points():
     _as_insight(card)
 
 
-def test_scenario_kind_with_alternatives_and_projection():
+def test_scenario_kind_recommended_action_only():
+    # Scenario cards now carry a narrative + recommended action, but NO
+    # alternatives and NO per-card projection (the comparison chart is computed
+    # separately in agentic_adk). Any alternatives/projection in the raw JSON are
+    # ignored by the shared parser.
     text = json.dumps(
         [
             {
-                "title": "Debt vs invest",
-                "body": "You could do either.",
+                "title": "Balanced growth",
+                "body": "A balanced plan.",
                 "short_term": "Free up cash flow.",
                 "long_term": "Compounding wins.",
-                "alternatives": [
-                    {"label": "Pay debt", "detail": "...", "tradeoff": "less growth",
-                     "recommended": False},
-                    {"label": "Invest", "detail": "...", "recommended": True},
-                ],
-                "recommended_action": "Split 50/50.",
-                "recommended_impact": "+$18k over 5 yrs",
-                "projection": {
-                    "unit": "CAD",
-                    "horizon_label": "5-year outlook",
-                    "series": [
-                        {"label": "Invest",
-                         "points": [{"t": "Y0", "value": 1000}, {"t": "Y1", "value": "1100"}]},
-                    ],
-                },
+                "alternatives": [{"label": "Ignored", "detail": "..."}],
+                "projection": {"series": [{"label": "x", "points": [{"t": "Y0", "value": 1}]}]},
+                "recommended_action": "Contribute monthly.",
                 "cta": "Discuss",
             }
         ]
     )
     card = parse_insight_cards(text, kind="scenario", grounded=True)[0]
     assert card["kind"] == "scenario"
-    assert len(card["alternatives"]) == 2
-    assert any(a["recommended"] for a in card["alternatives"])
-    assert card["recommended_impact"] == "+$18k over 5 yrs"
-    # String value coerced to float.
-    assert card["projection"]["series"][0]["points"][1]["value"] == 1100.0
-    _as_insight(card)
-
-
-def test_malformed_projection_is_dropped_not_fatal():
-    text = json.dumps(
-        [
-            {
-                "title": "Bad chart",
-                "body": "...",
-                "projection": {"series": [{"label": "x", "points": [{"t": "Y0"}]}]},
-                "cta": "ok",
-            }
-        ]
-    )
-    card = parse_insight_cards(text, kind="scenario", grounded=True)[0]
-    # Only one point (and non-numeric) -> whole projection dropped, card survives.
-    assert card["projection"] is None
+    assert card["short_term"] and card["long_term"]
+    assert card["recommended_action"] == "Contribute monthly."
+    # Alternatives / projection are no longer coerced onto scenario cards.
+    assert "alternatives" not in card
+    assert "projection" not in card
     _as_insight(card)
 
 

@@ -59,11 +59,33 @@ class Insight(BaseModel):
     projection: Optional[InsightProjection] = None
 
 
+class InsightAnalysisRow(BaseModel):
+    scenario: str
+    final_value: float
+    total_contributions: float
+    cagr: Optional[float] = None
+    note: Optional[str] = None
+
+
+class InsightAnalysis(BaseModel):
+    """Cross-scenario comparison for the Agentic approach (one chart + summary)."""
+
+    metric_label: str
+    unit: str = "CAD"
+    horizon_label: str = ""
+    series: list[InsightSeries] = Field(default_factory=list)
+    summary: list[InsightAnalysisRow] = Field(default_factory=list)
+    recommended_scenario: Optional[str] = None
+    recommendation_rationale: Optional[str] = None
+    comparison_summary: Optional[str] = None
+
+
 class InsightsResponse(BaseModel):
     architecture: Architecture
     provider: str
     persona_id: str
     insights: list[Insight]
+    analysis: Optional[InsightAnalysis] = None
     tool_calls: list[ToolCall] = Field(default_factory=list)
     timing_ms: int
     error: Optional[str] = None

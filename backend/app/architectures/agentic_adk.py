@@ -160,6 +160,44 @@ async def agentic_answer(
     return await _run_with_retry(persona_id, session_id, question)
 
 
+async def _persist_context_flags(
+    persona_id: str,
+    session_id: str,
+    *,
+    declined: bool,
+    client_context: str | None = None,
+) -> None:
+    """Deterministically correct the persisted context flags after an agent run.
+
+    The context subagent's LLM is unreliable at deciding ``declined`` — it tends to
+    mislabel negative-but-informative answers ("I don't want risk", "no kids", "I'm
+    worried about a downturn") as a refusal. But the frontend already knows the truth:
+    ``declined`` is true only when the client clicked *Skip*. So we treat the frontend
+    value as authoritative and overwrite whatever the LLM stored, using an ADK
+    state-delta event (the supported way to mutate session state out of band).
+    """
+    svc = _get_session_service()
+    session = await _maybe_await(
+        svc.get_session(app_name=APP_NAME, user_id=persona_id, session_id=session_id)
+    )
+    if session is None:
+        return
+    state = getattr(session, "state", None) or {}
+    delta: dict = {"client_context_declined": bool(declined)}
+    if client_context is not None:
+        delta["client_context"] = client_context
+    # Correct the last log entry's declined flag too, so the memory panel matches.
+    log = list(state.get("context_log", []))
+    if log and isinstance(log[-1], dict):
+        log[-1] = {**log[-1], "declined": bool(declined)}
+        delta["context_log"] = log
+
+    from google.adk.events import Event, EventActions
+
+    event = Event(author="system", actions=EventActions(state_delta=delta))
+    await _maybe_await(svc.append_event(session, event))
+
+
 async def read_session_context(persona_id: str, session_id: str) -> dict:
     """Return the collected-context slice of a session's memory ({} if none)."""
     svc = _get_session_service()
@@ -232,27 +270,84 @@ async def agentic_discovery(
     )
 
 
+def _clean_follow_up(text: str) -> str:
+    """Return the follow-up question, or '' when the agent signals it has enough.
+
+    The context agent replies ``ENOUGH`` when it doesn't need more context; we also
+    treat a reply with no question mark (i.e. not actually a question) as a stop.
+    """
+    t = (text or "").strip()
+    if not t:
+        return ""
+    # Strip a leading ENOUGH token / stop signal.
+    if t.upper().startswith("ENOUGH") or t.upper() == "NONE":
+        return ""
+    if "?" not in t:
+        return ""
+    return t
+
+
 async def agentic_save_context(
     persona_id: str, session_id: str, answer: str, declined: bool
 ) -> tuple[dict, list[ExecutedToolCall]]:
-    """Persist the client's answer to memory and get a follow-up question back."""
+    """Persist the client's answer to memory and get a follow-up question back.
+
+    The follow-up is optional: the context agent replies ``ENOUGH`` once it has
+    sufficient context, which we normalize to an empty string so the UI stops
+    asking (a hard cap on the frontend backs this up).
+
+    ``declined`` is authoritative from the frontend (true only when the client hit
+    *Skip*); we persist that value ourselves rather than trusting the LLM's guess, so
+    an informative-but-negative answer is never mislabeled as a refusal.
+    """
+    before = await read_session_context(persona_id, session_id)
+    known = before["client_context"].strip()
+    known_line = (
+        f"Already known about this client (do NOT ask about any of this again): "
+        f"\"{known}\".\n"
+        if known
+        else "Nothing is known about this client yet.\n"
+    )
+
     if declined:
         message = (
-            "The client DECLINED to share specific goals (they skipped). Call "
-            "save_client_context with a brief note and declined=true, then reply "
-            "with ONE short, low-pressure follow-up question."
+            known_line
+            + "The client clicked SKIP — they chose not to answer THIS question. "
+            "That is fine and does NOT erase what's already known. Call "
+            "save_client_context to re-save the existing known context unchanged "
+            "(declined=true only if nothing at all is known yet). Do not push — "
+            "reply with exactly ENOUGH."
         )
     else:
         message = (
-            f"The client shared this goal/context: \"{answer}\". Call "
-            "save_client_context to save a short normalized summary (declined=false), "
-            "then reply with ONE short follow-up question to sharpen the advice."
+            known_line
+            + f'The client just answered: "{answer}". This is real context even if '
+            "it is a negative, a concern, or a constraint (e.g. wanting to avoid "
+            "risk, having no children, worrying about a downturn) — treat it as "
+            "information, never as a refusal. Call save_client_context with "
+            "declined=false and a summary that MERGES this answer with everything "
+            "already known into one cumulative sentence (keep all prior facts). "
+            "Then ask ONE short follow-up about something genuinely still missing "
+            "and not listed above, or reply with exactly ENOUGH if you have enough."
         )
     follow_up, tool_calls = await _run_with_retry(persona_id, session_id, message)
+    follow_up = _clean_follow_up(follow_up)
+    # Deterministic, LLM-proof flags. We've only truly "declined" when the client
+    # skipped AND nothing was ever collected — skipping a follow-up after already
+    # sharing a goal keeps the earlier context intact and declined=false. A typed
+    # answer (however negative) is never a decline.
+    declined_final = bool(declined) and not known
+    if declined:
+        # A skip must never erase or rewrite previously collected context.
+        await _persist_context_flags(
+            persona_id, session_id, declined=declined_final, client_context=known
+        )
+    else:
+        await _persist_context_flags(persona_id, session_id, declined=declined_final)
     stored = await read_session_context(persona_id, session_id)
     return (
         {
-            "follow_up": follow_up.strip(),
+            "follow_up": follow_up,
             "stored_context": stored["client_context"],
             "declined": stored["declined"],
         },
@@ -327,7 +422,9 @@ async def agentic_insights(
         '     "recommended_action": "the one action to take",\n'
         '     "assumptions": ["..."]  (ONLY when the client declined; else []),\n'
         '     "annual_return": <0.0-0.12 nominal return for this strategy>,\n'
-        '     "monthly_contribution": <CAD/month added; use the real surplus>\n'
+        '     "monthly_contribution": <CAD/month added; use the real surplus>,\n'
+        '     "follow_up_questions": ["...","..."]  (2-3 short, specific questions '
+        "THIS client would likely ask about THIS scenario, in first person)\n"
         "  } ]  (exactly 3, each with a DIFFERENT strategy/return)\n"
         "}\n"
         "Pick the metric that best fits the goal. Choose each scenario's "
@@ -421,6 +518,12 @@ def _build_scenarios_and_analysis(
                 f"{_METRIC_LABELS[metric]} ≈ ${proj['final_value']:,.0f} in "
                 f"{proj['years']} yrs (assumes {proj['annual_return']*100:.1f}%/yr return)"
             ),
+            "follow_up_questions": [
+                str(q).strip()
+                for q in (sc.get("follow_up_questions") or [])
+                if str(q).strip()
+            ][:4]
+            or None,
         }
         if declined:
             assumptions = [str(a).strip() for a in (sc.get("assumptions") or []) if str(a).strip()]

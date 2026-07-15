@@ -18,8 +18,14 @@ def save_client_context(
 
     Call this whenever the client shares (or declines to share) what they're
     planning — e.g. retiring early, buying a home, funding education. Pass a short
-    normalized summary as ``context``. Set ``declined=True`` if the client skipped
-    or refused to share, so downstream advice knows to state its assumptions.
+    normalized summary as ``context`` that MERGES the new answer with everything
+    already known this session — never drop previously shared facts.
+
+    ``declined`` means the client gave NO usable information at all (they hit Skip
+    or said something like "I'm not sure"). A negative preference, a concern, a
+    constraint, or a "no" to a specific option (e.g. "I don't want risk", "no
+    children", "not planning to move") is still real context — keep
+    ``declined=False`` and record it. When in doubt, ``declined=False``.
     """
     if tool_context is not None:
         tool_context.state["client_context"] = context or ""

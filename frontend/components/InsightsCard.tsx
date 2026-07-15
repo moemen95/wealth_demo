@@ -122,6 +122,9 @@ function AgenticInsights({
   const [insights, setInsights] = useState<InsightsResponse | null>(null);
   const [memory, setMemory] = useState<AgenticMemoryData | null>(null);
   const [followUp, setFollowUp] = useState("");
+  // Cap how many refine follow-ups the agent may ask so it can't loop forever.
+  const [refineCount, setRefineCount] = useState(0);
+  const MAX_REFINES = 2;
   // The scenario the user drilled into for a conversation (comparison stays pinned).
   const [selected, setSelected] = useState<Insight | null>(null);
   const runId = useRef(0);
@@ -170,6 +173,7 @@ function AgenticInsights({
     setInsights(null);
     setMemory(null);
     setFollowUp("");
+    setRefineCount(0);
     api
       .agenticDiscovery(persona, sessionId)
       .then((d) => {
@@ -244,11 +248,14 @@ function AgenticInsights({
 
       {(phase === "saving" || phase === "insights") && !selected && (
         <div className="space-y-4">
-          {phase === "insights" && followUp && (
+          {phase === "insights" && followUp && refineCount < MAX_REFINES && (
             <AgenticDiscovery
               question={followUp}
               options={[]}
-              onAnswer={answer}
+              onAnswer={(text, declined) => {
+                setRefineCount((c) => c + 1);
+                answer(text, declined);
+              }}
               compact
             />
           )}
@@ -295,6 +302,7 @@ function AgenticInsights({
                 <ChatInput
                   onSend={(text) => chat.send(text, insightContext(selected))}
                   disabled={chat.loading}
+                  suggestions={selected.follow_up_questions ?? undefined}
                 />
               </div>
             </Card>

@@ -85,6 +85,7 @@ export interface Insight {
   recommended_action?: string | null;
   recommended_impact?: string | null;
   grounded?: boolean | null;
+  follow_up_questions?: string[] | null;
   projection?: InsightProjection | null;
 }
 

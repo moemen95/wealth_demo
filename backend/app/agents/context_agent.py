@@ -33,9 +33,17 @@ def build_context_agent() -> LlmAgent:
             "'Buy a home', 'Fund children's education', 'Start a business'). No prose "
             "outside the JSON.\n"
             "MODE 2 — if given the client's ANSWER: call save_client_context with a "
-            "short normalized summary of their goal (set declined=true if they "
-            "skipped or refused), then reply with ONE brief follow-up question that "
-            "would further sharpen the advice. Keep it to a single sentence."
+            "short summary that MERGES their new answer with the known context above "
+            "into one cumulative sentence — never drop a fact you already know. "
+            "Treat negatives, concerns and constraints (e.g. 'I don't want risk', "
+            "'no children', 'worried about a downturn') as real context, NOT as a "
+            "refusal: keep declined=false. Only set declined=true when the client "
+            "gave no usable information whatsoever. Then decide whether you still "
+            "need more context: reply with ONE short follow-up question ONLY if a "
+            "specific detail that is NOT already known above would materially change "
+            "the plan. Never re-ask anything already known. If the context is "
+            "sufficient (or you've already asked a couple of questions), reply with "
+            "exactly the single word ENOUGH and no question."
         ),
         tools=[FunctionTool(save_client_context)],
     )

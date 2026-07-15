@@ -55,6 +55,8 @@ class Insight(BaseModel):
     recommended_action: Optional[str] = None
     recommended_impact: Optional[str] = None
     grounded: Optional[bool] = None
+    # Agentic: scenario-specific follow-up questions for the drill-in chat
+    follow_up_questions: Optional[list[str]] = None
     # Agentic scenario chart
     projection: Optional[InsightProjection] = None
 

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const SUGGESTIONS = [
+const DEFAULT_SUGGESTIONS = [
   "Give me the total in my portfolio.",
   "How much should I save from my monthly income?",
   "Should I pay down debt or invest?",
@@ -16,12 +16,16 @@ export function ChatInput({
   onSend,
   disabled,
   showSuggestions = true,
+  suggestions,
 }: {
   onSend: (text: string) => void;
   disabled?: boolean;
   showSuggestions?: boolean;
+  /** Override the default starter questions (e.g. agent-generated, scenario-specific). */
+  suggestions?: string[];
 }) {
   const [text, setText] = useState("");
+  const pills = suggestions && suggestions.length > 0 ? suggestions : DEFAULT_SUGGESTIONS;
 
   const submit = () => {
     const t = text.trim();
@@ -34,7 +38,7 @@ export function ChatInput({
     <div className="space-y-2">
       {showSuggestions && (
         <div className="flex flex-wrap gap-1.5">
-          {SUGGESTIONS.map((s) => (
+          {pills.map((s) => (
             <button
               key={s}
               onClick={() => onSend(s)}

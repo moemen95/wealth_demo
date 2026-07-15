@@ -45,6 +45,41 @@ def test_unknown_provider_raises(monkeypatch):
     _clear_cache()
 
 
+def test_build_gcp_credentials_plain_adc(monkeypatch):
+    """No impersonation env → return the ambient ADC unchanged."""
+    monkeypatch.delenv("GCP_IMPERSONATE_SERVICE_ACCOUNT", raising=False)
+    import google.auth
+
+    src = object()
+    monkeypatch.setattr(google.auth, "default", lambda scopes=None: (src, None))
+    assert llm.build_gcp_credentials() is src
+
+
+def test_build_gcp_credentials_impersonates(monkeypatch):
+    """With the env var set → wrap ADC in short-lived impersonated credentials."""
+    monkeypatch.setenv(
+        "GCP_IMPERSONATE_SERVICE_ACCOUNT", "sa@proj.iam.gserviceaccount.com"
+    )
+    import google.auth
+    from google.auth import impersonated_credentials
+
+    src = object()
+    monkeypatch.setattr(google.auth, "default", lambda scopes=None: (src, None))
+    captured = {}
+
+    class _FakeImpersonated:
+        def __init__(self, **kw):
+            captured.update(kw)
+
+    monkeypatch.setattr(impersonated_credentials, "Credentials", _FakeImpersonated)
+
+    creds = llm.build_gcp_credentials()
+    assert isinstance(creds, _FakeImpersonated)
+    assert captured["source_credentials"] is src
+    assert captured["target_principal"] == "sa@proj.iam.gserviceaccount.com"
+    assert captured["lifetime"] == 3600
+
+
 def test_json_schema_to_gemini_uppercases_types():
     schema = _json_schema_to_gemini(
         {"type": "object", "properties": {"x": {"type": "string"}}, "required": ["x"]}

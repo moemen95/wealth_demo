@@ -119,11 +119,14 @@ GCP_IMPERSONATE_SERVICE_ACCOUNT=sa-agent@my-gcp-project.iam.gserviceaccount.com
 GEMINI_MODEL=gemini-1.5-pro
 ```
 
-The provider layer mints **1-hour short-lived tokens** via
-`impersonated_credentials` — every call is attributable to both your identity
-and the SA, and **no JSON keys touch disk**. For the ADK agentic path, ADC is
-used directly; you can make ADC itself impersonate with
-`gcloud config set auth/impersonate_service_account <SA>`.
+All three tabs — raw, skills, **and** the ADK agentic tree — mint **1-hour
+short-lived tokens** via `impersonated_credentials` from the single
+`GCP_IMPERSONATE_SERVICE_ACCOUNT` env var. Every call is attributable to both
+your identity and the SA, **no JSON keys touch disk**, and no ADC-level
+impersonation setup is required. (ADK builds its own `google.genai` client, so
+`model_resolver` subclasses `Gemini` to inject the same impersonated
+credentials — see `backend/app/agents/model_resolver.py`.) Plain ADC is used
+only when the env var is unset.
 
 ---
 

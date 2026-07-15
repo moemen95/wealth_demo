@@ -28,6 +28,34 @@ from .config import get_settings
 # A tool executor takes (tool_name, arguments) and returns a JSON-serialisable result.
 ToolExecutor = Callable[[str, dict], Any]
 
+# Cloud Platform scope for Vertex AI calls.
+_GCP_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
+
+
+def build_gcp_credentials():
+    """Return GCP credentials for Vertex AI: short-lived impersonated creds when
+    ``GCP_IMPERSONATE_SERVICE_ACCOUNT`` is set, else plain ADC.
+
+    Shared by BOTH Gemini call paths so impersonation behaves identically:
+    the custom provider (raw / skills) and the ADK agentic tree (which passes
+    these creds into its ``google.genai`` client via ``model_resolver``).
+    """
+    import google.auth
+    from google.auth import impersonated_credentials
+
+    source_credentials, _ = google.auth.default(scopes=_GCP_SCOPES)
+
+    target_sa = get_settings().impersonate_service_account
+    if not target_sa:
+        return source_credentials  # plain ADC — no impersonation
+
+    return impersonated_credentials.Credentials(
+        source_credentials=source_credentials,
+        target_principal=target_sa,
+        target_scopes=_GCP_SCOPES,
+        lifetime=3600,  # 1h short-lived tokens; clean audit trail
+    )
+
 MAX_TOOL_ROUNDS_DEFAULT = 1  # Skills = single-shot: one tool round, then finalise.
 
 
@@ -163,34 +191,13 @@ class GeminiVertexProvider:
                 "GOOGLE_CLOUD_PROJECT is required when LLM_PROVIDER=gemini. "
                 "Set it in backend/.env."
             )
-        credentials = self._build_credentials()
         self.client = genai.Client(
             vertexai=True,
             project=s.google_cloud_project,
             location=s.google_cloud_location,
-            credentials=credentials,
+            credentials=build_gcp_credentials(),
         )
         self.model = s.gemini_model
-
-    @staticmethod
-    def _build_credentials():
-        """Short-lived creds via impersonation, else plain ADC (SPEC §5)."""
-        import google.auth
-        from google.auth import impersonated_credentials
-
-        scopes = ["https://www.googleapis.com/auth/cloud-platform"]
-        source_credentials, _ = google.auth.default(scopes=scopes)
-
-        target_sa = get_settings().impersonate_service_account
-        if not target_sa:
-            return source_credentials  # plain ADC — no impersonation
-
-        return impersonated_credentials.Credentials(
-            source_credentials=source_credentials,
-            target_principal=target_sa,
-            target_scopes=scopes,
-            lifetime=3600,  # 1h short-lived tokens; clean audit trail
-        )
 
     # -- message / schema normalisation --
     @staticmethod

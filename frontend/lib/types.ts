@@ -103,6 +103,7 @@ export interface InsightAnalysis {
   horizon_label: string;
   series: InsightSeries[];
   summary: InsightAnalysisRow[];
+  chart_explanation?: string | null;
   recommended_scenario?: string | null;
   recommendation_rationale?: string | null;
   comparison_summary?: string | null;

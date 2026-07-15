@@ -77,6 +77,7 @@ class InsightAnalysis(BaseModel):
     horizon_label: str = ""
     series: list[InsightSeries] = Field(default_factory=list)
     summary: list[InsightAnalysisRow] = Field(default_factory=list)
+    chart_explanation: Optional[str] = None
     recommended_scenario: Optional[str] = None
     recommendation_rationale: Optional[str] = None
     comparison_summary: Optional[str] = None

@@ -418,7 +418,10 @@ async def agentic_insights(
         '  "comparison_summary": "<1-2 sentences comparing the three>",\n'
         '  "scenarios": [ {\n'
         '     "title": "...", "body": "1-2 sentence situation",\n'
-        '     "short_term": "next ~12 months", "long_term": "~5+ years",\n'
+        '     "short_term": "<1 sentence: what to focus on in the next ~12 months '
+        'for this scenario>",\n'
+        '     "long_term": "<1 sentence: what to focus on over ~5+ years for this '
+        'scenario>",\n'
         '     "recommended_action": "the one action to take",\n'
         '     "assumptions": ["..."]  (ONLY when the client declined; else []),\n'
         '     "annual_return": <0.0-0.12 nominal return for this strategy>,\n'
@@ -552,11 +555,39 @@ def _build_scenarios_and_analysis(
         "horizon_label": f"{int(horizon_years)}-year outlook",
         "series": series,
         "summary": summary,
+        "chart_explanation": _chart_explanation(metric_label, horizon_years, summary),
         "recommended_scenario": str(obj.get("recommended_scenario") or "").strip() or None,
         "recommendation_rationale": str(obj.get("recommendation_rationale") or "").strip() or None,
         "comparison_summary": str(obj.get("comparison_summary") or "").strip() or None,
     }
     return cards, analysis
+
+
+def _chart_explanation(metric_label: str, horizon_years, summary: list[dict]) -> str | None:
+    """A grounded, plain-language walkthrough of the comparison chart.
+
+    Deterministic (built from the same projection numbers the chart plots), so it
+    never drifts from the lines on screen. Explains the axes, why the lines diverge,
+    and quantifies the spread between the best- and worst-performing scenarios.
+    """
+    if len(summary) < 2:
+        return None
+    yrs = int(horizon_years)
+    label = metric_label.lower()
+    ranked = sorted(summary, key=lambda r: r["final_value"], reverse=True)
+    best, worst = ranked[0], ranked[-1]
+    diff = best["final_value"] - worst["final_value"]
+    return (
+        f"The chart projects your {label} year by year over the next {yrs} years — "
+        f"one line per scenario. Each line starts from your current balance and "
+        f"compounds your monthly contributions at that scenario's assumed annual "
+        f"return, so steeper lines mean higher assumed returns. By year {yrs}, "
+        f"“{best['scenario']}” reaches about ${best['final_value']:,.0f} "
+        f"(at {best['cagr']*100:.1f}%/yr) while “{worst['scenario']}” reaches about "
+        f"${worst['final_value']:,.0f} (at {worst['cagr']*100:.1f}%/yr) — a spread of "
+        f"roughly ${diff:,.0f}. The lines sit close together in the early years and "
+        f"fan out later, because a higher return compounds on an ever-larger balance."
+    )
 
 
 def _parse_agentic_object(text: str) -> dict | None:

@@ -130,6 +130,7 @@ function ScenarioBody({ insight }: { insight: Insight }) {
         <HorizonBlock
           icon={<Clock className="h-3.5 w-3.5" />}
           label="Short term"
+          sublabel="next ~12 months"
           text={insight.short_term}
         />
       )}
@@ -137,6 +138,7 @@ function ScenarioBody({ insight }: { insight: Insight }) {
         <HorizonBlock
           icon={<TrendingUp className="h-3.5 w-3.5" />}
           label="Long term"
+          sublabel="~5+ years"
           text={insight.long_term}
         />
       )}
@@ -150,7 +152,7 @@ function RecommendedAction({ insight }: { insight: Insight }) {
     <div className="rounded-md border border-primary/40 bg-primary/5 p-3">
       <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-primary">
         <Sparkles className="h-3.5 w-3.5" />
-        Recommended action
+        Key Summary
       </div>
       <p className="text-sm text-foreground">{md(insight.recommended_action)}</p>
       {insight.recommended_impact && (
@@ -165,10 +167,12 @@ function RecommendedAction({ insight }: { insight: Insight }) {
 function HorizonBlock({
   icon,
   label,
+  sublabel,
   text,
 }: {
   icon: React.ReactNode;
   label: string;
+  sublabel?: string;
   text: string;
 }) {
   return (
@@ -176,8 +180,11 @@ function HorizonBlock({
       <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-foreground">
         {icon}
         {label}
+        {sublabel && (
+          <span className="font-normal text-muted-foreground">· {sublabel}</span>
+        )}
       </div>
-      <p className="text-xs text-muted-foreground">{text}</p>
+      <p className="text-xs text-muted-foreground">{md(text)}</p>
     </div>
   );
 }

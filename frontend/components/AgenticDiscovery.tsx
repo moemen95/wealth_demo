@@ -17,12 +17,18 @@ export function AgenticDiscovery({
   onAnswer,
   disabled = false,
   compact = false,
+  title = "Before I tailor your insights",
+  description,
 }: {
   question: string;
   options: string[];
   onAnswer: (answer: string, declined: boolean) => void;
   disabled?: boolean;
   compact?: boolean;
+  /** Small uppercase header above the question. */
+  title?: string;
+  /** Optional framing sentence shown between the title and the question. */
+  description?: string;
 }) {
   const [text, setText] = useState("");
 
@@ -40,8 +46,11 @@ export function AgenticDiscovery({
           <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Before I tailor your insights
+              {title}
             </p>
+            {description && (
+              <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
+            )}
             <p className="mt-0.5 font-medium text-foreground">{question}</p>
           </div>
         </div>

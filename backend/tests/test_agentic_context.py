@@ -83,6 +83,28 @@ def test_scenarios_carry_follow_up_questions():
     assert cards[2]["follow_up_questions"] == ["Can I retire earlier?"]
 
 
+def test_analysis_has_grounded_chart_explanation():
+    from app.architectures.agentic_adk import _build_scenarios_and_analysis
+
+    obj = {
+        "metric": "portfolio_value",
+        "metric_label": "Portfolio value",
+        "horizon_years": 15,
+        "scenarios": [
+            {"title": "Conservative", "annual_return": 0.035},
+            {"title": "Balanced", "annual_return": 0.06},
+            {"title": "Growth", "annual_return": 0.085},
+        ],
+    }
+    _, analysis = _build_scenarios_and_analysis("affluent", json.dumps(obj), declined=False)
+    exp = analysis["chart_explanation"]
+    assert exp and "15 years" in exp
+    # Names the best and worst scenario, and reads off the same numbers the chart plots.
+    assert "Growth" in exp and "Conservative" in exp
+    best = max(analysis["summary"], key=lambda r: r["final_value"])
+    assert f"${best['final_value']:,.0f}" in exp
+
+
 def test_discovery_parser_fallback_and_success():
     fb = agentic_adk._parse_discovery("no json here")
     assert fb["question"] and len(fb["options"]) >= 2

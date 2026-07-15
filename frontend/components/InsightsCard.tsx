@@ -248,17 +248,6 @@ function AgenticInsights({
 
       {(phase === "saving" || phase === "insights") && !selected && (
         <div className="space-y-4">
-          {phase === "insights" && followUp && refineCount < MAX_REFINES && (
-            <AgenticDiscovery
-              question={followUp}
-              options={[]}
-              onAnswer={(text, declined) => {
-                setRefineCount((c) => c + 1);
-                answer(text, declined);
-              }}
-              compact
-            />
-          )}
           <InsightGrid
             loading={phase === "saving"}
             insights={insights?.insights}
@@ -270,6 +259,21 @@ function AgenticInsights({
           )}
           {phase === "insights" && insights && (
             <ToolTrace calls={insights.tool_calls} />
+          )}
+          {/* Context collector lives at the BOTTOM — the insights above are the
+              starting point; answering here refines them. */}
+          {phase === "insights" && followUp && refineCount < MAX_REFINES && (
+            <AgenticDiscovery
+              question={followUp}
+              options={[]}
+              title="Want more personalized insights?"
+              description="These are my initial insights. Share a little more context and I'll tailor them more closely to your situation."
+              onAnswer={(text, declined) => {
+                setRefineCount((c) => c + 1);
+                answer(text, declined);
+              }}
+              compact
+            />
           )}
         </div>
       )}

@@ -40,6 +40,17 @@ export function InsightAnalysis({
           />
         )}
 
+        {analysis.chart_explanation && (
+          <div className="rounded-md border bg-muted/40 p-3">
+            <div className="mb-1 text-xs font-semibold text-foreground">
+              How to read this chart
+            </div>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {analysis.chart_explanation}
+            </p>
+          </div>
+        )}
+
         {summary.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

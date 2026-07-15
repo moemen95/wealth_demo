@@ -6,13 +6,14 @@ from google.adk.tools import FunctionTool
 
 from ..skills.portfolio import get_allocation, get_performance, get_portfolio_total
 from ..skills.projection import project_strategy
-from .model_resolver import resolve_adk_model
+from .model_resolver import adk_generate_content_config, resolve_adk_model
 
 
 def build_portfolio_agent() -> LlmAgent:
     return LlmAgent(
         name="portfolio_agent",
         model=resolve_adk_model(),
+        generate_content_config=adk_generate_content_config(),
         description=(
             "Handles portfolio value, asset allocation, and performance vs "
             "benchmark questions."

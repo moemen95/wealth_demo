@@ -4,6 +4,16 @@ SHELL := /bin/bash
 BACKEND := backend
 FRONTEND := frontend
 
+# Load backend/.env into every recipe's environment. The backend no longer loads
+# .env itself (python-dotenv removed) — `make` is the single source of truth, so
+# the variables are exported here before uvicorn (or any target) runs. Guarded so
+# `make env` still works before the file exists. Keep backend/.env simple
+# KEY=value lines (no `$` — make would expand it).
+ifneq (,$(wildcard $(BACKEND)/.env))
+-include $(BACKEND)/.env
+export
+endif
+
 .PHONY: help
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -15,16 +25,18 @@ setup: ## Install backend (uv) and frontend (pnpm) dependencies
 	cd $(FRONTEND) && pnpm install
 
 .PHONY: env
-env: ## Create backend/.env from the example if missing
+env: ## Create backend/.env and frontend/.env from the examples if missing
 	@test -f $(BACKEND)/.env || (cp $(BACKEND)/.env.example $(BACKEND)/.env && \
 	  echo "Created $(BACKEND)/.env — edit it to set LLM_PROVIDER + credentials.")
+	@test -f $(FRONTEND)/.env || (cp $(FRONTEND)/.env.example $(FRONTEND)/.env && \
+	  echo "Created $(FRONTEND)/.env — edit it to set NEXT_PUBLIC_API_BASE.")
 
 .PHONY: backend
-backend: ## Run the FastAPI backend on :8000
+backend: env ## Run the FastAPI backend on :8000 (env vars loaded from backend/.env)
 	cd $(BACKEND) && uv run uvicorn app.main:app --reload --port 8000
 
 .PHONY: frontend
-frontend: ## Run the Next.js frontend on :3000
+frontend: env ## Run the Next.js frontend on :3000
 	cd $(FRONTEND) && pnpm dev
 
 .PHONY: dev
@@ -36,7 +48,7 @@ dev: env ## Run backend + frontend together (one command)
 	 wait
 
 .PHONY: test
-test: ## Run backend tests
+test: env ## Run backend tests
 	cd $(BACKEND) && uv run pytest -q
 
 .PHONY: up

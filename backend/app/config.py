@@ -1,10 +1,10 @@
 """Central configuration.
 
-Reads a backend/.env file (if present) and exposes typed settings. Only a
-handful of values are truly required and they depend on the selected provider,
-so we keep everything optional here and validate lazily inside the provider
-layer — this lets the server boot even with a partial .env so the UI and the
-non-LLM endpoints stay reachable during a demo.
+Exposes typed settings read straight from the process environment. Environment
+variables are loaded by ``make`` (which sources backend/.env before running the
+app) — the application no longer loads a .env file itself. Only a handful of
+values are truly required and they depend on the selected provider, so we keep
+everything optional here and validate lazily inside the provider layer.
 """
 from __future__ import annotations
 
@@ -12,11 +12,24 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
-from dotenv import load_dotenv
-
-# Load backend/.env as early as possible.
 _ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(_ENV_PATH)
+
+
+def require_env_file(path: Path | None = None) -> None:
+    """Raise if the backend environment file is absent.
+
+    The app no longer loads .env itself — ``make`` sources it before launch — but
+    a missing file almost always means it was never created, so we fail fast with
+    a clear message instead of booting with silently-empty credentials.
+    """
+    p = path or _ENV_PATH
+    if not p.exists():
+        raise RuntimeError(
+            f"Missing environment file: {p}\n"
+            "Copy backend/.env.example to backend/.env (or run `make env`), then "
+            "start the backend with `make backend` / `make dev` so the variables "
+            "are loaded into the environment."
+        )
 
 
 class Settings:
@@ -57,6 +70,15 @@ class Settings:
     @property
     def use_vertexai(self) -> bool:
         return os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "true").lower() == "true"
+
+    @property
+    def google_afc_max_remote_calls(self) -> int:
+        """Cap on automatic-function-calling remote calls per generate_content
+        request. Applied to the generate-content config on both Gemini paths."""
+        try:
+            return int(os.getenv("GOOGLE_AFC_MAX_REMOTE_CALLS", "50"))
+        except ValueError:
+            return 50
 
     # ---- Server ----
     @property

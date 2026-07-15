@@ -12,7 +12,7 @@ from google.adk.agents import LlmAgent
 from .budgeting_agent import build_budgeting_agent
 from .context_agent import build_context_agent
 from .education_agent import build_education_agent
-from .model_resolver import resolve_adk_model
+from .model_resolver import adk_generate_content_config, resolve_adk_model
 from .portfolio_agent import build_portfolio_agent
 
 ROOT_INSTRUCTION = (
@@ -40,6 +40,7 @@ def build_root_agent() -> LlmAgent:
     return LlmAgent(
         name="wealth_root",
         model=resolve_adk_model(),
+        generate_content_config=adk_generate_content_config(),
         instruction=ROOT_INSTRUCTION,
         sub_agents=[
             build_portfolio_agent(),

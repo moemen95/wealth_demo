@@ -76,3 +76,16 @@ def test_resolve_unknown_provider_raises(monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "banana")
     with pytest.raises(ValueError):
         mr.resolve_adk_model()
+
+
+def test_adk_generate_content_config_carries_afc_cap(monkeypatch):
+    monkeypatch.setenv("LLM_PROVIDER", "gemini")
+    monkeypatch.setenv("GOOGLE_AFC_MAX_REMOTE_CALLS", "42")
+    cfg = mr.adk_generate_content_config()
+    assert cfg is not None
+    assert cfg.automatic_function_calling.maximum_remote_calls == 42
+
+
+def test_adk_generate_content_config_none_for_openai(monkeypatch):
+    monkeypatch.setenv("LLM_PROVIDER", "openai")
+    assert mr.adk_generate_content_config() is None

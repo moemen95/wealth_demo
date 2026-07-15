@@ -5,13 +5,14 @@ from google.adk.agents import LlmAgent
 from google.adk.tools import FunctionTool
 
 from ..skills.budgeting import get_debt_strategy, get_income_expenses, suggest_savings_rate
-from .model_resolver import resolve_adk_model
+from .model_resolver import adk_generate_content_config, resolve_adk_model
 
 
 def build_budgeting_agent() -> LlmAgent:
     return LlmAgent(
         name="budgeting_agent",
         model=resolve_adk_model(),
+        generate_content_config=adk_generate_content_config(),
         description=(
             "Handles cash-flow, savings-rate, and debt-paydown (avalanche vs "
             "snowball) questions."

@@ -45,6 +45,21 @@ def _impersonated_gemini(model_id: str):
     return _ImpersonatedGemini(model=model_id)
 
 
+def adk_generate_content_config():
+    """generate_content config for ADK agents — carries the AFC remote-call cap
+    (``GOOGLE_AFC_MAX_REMOTE_CALLS``) so the agentic path matches the custom
+    provider. Returns None for non-Gemini providers (LiteLLM ignores it)."""
+    if os.getenv("LLM_PROVIDER", "gemini").lower() != "gemini":
+        return None
+    from google.genai import types
+
+    from ..llm_provider import automatic_function_calling_config
+
+    return types.GenerateContentConfig(
+        automatic_function_calling=automatic_function_calling_config()
+    )
+
+
 def resolve_adk_model():
     provider = os.getenv("LLM_PROVIDER", "gemini").lower()
     if provider == "gemini":

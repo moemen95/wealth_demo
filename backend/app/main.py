@@ -6,7 +6,10 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .config import get_settings
+from .config import get_settings, require_env_file
+
+# Fail fast if the environment file is missing (before anything reads settings).
+require_env_file()
 from .llm_provider import current_provider_name, provider_label
 from .routes import agentic, chat, insights, personas, provider
 

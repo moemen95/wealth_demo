@@ -56,6 +56,16 @@ def build_gcp_credentials():
         lifetime=3600,  # 1h short-lived tokens; clean audit trail
     )
 
+
+def automatic_function_calling_config():
+    """AFC config for a generate_content request, honoring
+    ``GOOGLE_AFC_MAX_REMOTE_CALLS`` (default 50). Shared by both Gemini paths."""
+    from google.genai import types
+
+    return types.AutomaticFunctionCallingConfig(
+        maximum_remote_calls=get_settings().google_afc_max_remote_calls
+    )
+
 MAX_TOOL_ROUNDS_DEFAULT = 1  # Skills = single-shot: one tool round, then finalise.
 
 
@@ -243,7 +253,10 @@ class GeminiVertexProvider:
         resp = self.client.models.generate_content(
             model=self.model,
             contents=contents,
-            config=types.GenerateContentConfig(system_instruction=system_instruction),
+            config=types.GenerateContentConfig(
+                system_instruction=system_instruction,
+                automatic_function_calling=automatic_function_calling_config(),
+            ),
         )
         return resp.text or ""
 
@@ -264,6 +277,7 @@ class GeminiVertexProvider:
             allow_tools = round_idx < max_rounds
             config = types.GenerateContentConfig(
                 system_instruction=system_instruction,
+                automatic_function_calling=automatic_function_calling_config(),
                 tools=gemini_tools if allow_tools else None,
             )
             resp = self.client.models.generate_content(

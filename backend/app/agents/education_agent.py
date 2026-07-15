@@ -6,13 +6,14 @@ from google.adk.tools import FunctionTool
 
 from ..skills.advisor import book_advisor_meeting
 from ..skills.market import get_market_snapshot
-from .model_resolver import resolve_adk_model
+from .model_resolver import adk_generate_content_config, resolve_adk_model
 
 
 def build_education_agent() -> LlmAgent:
     return LlmAgent(
         name="education_agent",
         model=resolve_adk_model(),
+        generate_content_config=adk_generate_content_config(),
         description=(
             "Explains financial concepts in plain language, provides market "
             "context, and can book a meeting with a human advisor."

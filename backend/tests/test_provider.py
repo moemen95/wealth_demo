@@ -80,6 +80,40 @@ def test_build_gcp_credentials_impersonates(monkeypatch):
     assert captured["lifetime"] == 3600
 
 
+def test_require_env_file_passes_when_present(tmp_path):
+    from app.config import require_env_file
+
+    p = tmp_path / ".env"
+    p.write_text("X=1\n")
+    require_env_file(p)  # must not raise
+
+
+def test_require_env_file_raises_when_missing(tmp_path):
+    import pytest
+
+    from app.config import require_env_file
+
+    with pytest.raises(RuntimeError, match="Missing environment file"):
+        require_env_file(tmp_path / "nope.env")
+
+
+def test_afc_max_remote_calls_default_override_and_invalid(monkeypatch):
+    from app.config import get_settings
+
+    monkeypatch.delenv("GOOGLE_AFC_MAX_REMOTE_CALLS", raising=False)
+    assert get_settings().google_afc_max_remote_calls == 50
+    monkeypatch.setenv("GOOGLE_AFC_MAX_REMOTE_CALLS", "12")
+    assert get_settings().google_afc_max_remote_calls == 12
+    monkeypatch.setenv("GOOGLE_AFC_MAX_REMOTE_CALLS", "not-an-int")
+    assert get_settings().google_afc_max_remote_calls == 50  # falls back
+
+
+def test_automatic_function_calling_config_uses_setting(monkeypatch):
+    monkeypatch.setenv("GOOGLE_AFC_MAX_REMOTE_CALLS", "33")
+    afc = llm.automatic_function_calling_config()
+    assert afc.maximum_remote_calls == 33
+
+
 def test_json_schema_to_gemini_uppercases_types():
     schema = _json_schema_to_gemini(
         {"type": "object", "properties": {"x": {"type": "string"}}, "required": ["x"]}

@@ -126,6 +126,60 @@ def test_all_skill_schemas_convert_to_gemini_tools():
     assert len(tools[0].function_declarations) == len(SKILL_SCHEMAS)
 
 
+def test_parallel_function_calls_reply_in_a_single_turn():
+    """Gemini 400s unless a function-call turn is answered with the same number of
+    function_response parts in ONE turn. When the model makes 2 parallel calls, we
+    must reply with a single turn carrying both responses (not one turn each)."""
+    from types import SimpleNamespace
+
+    # Fake genai response: round 0 = two parallel function calls; round 1 = text.
+    def fc_part(name):
+        return SimpleNamespace(
+            function_call=SimpleNamespace(name=name, args={"persona_id": "affluent"}),
+            text=None,
+        )
+
+    round0 = SimpleNamespace(
+        candidates=[SimpleNamespace(content=SimpleNamespace(
+            role="model", parts=[fc_part("get_portfolio_total"), fc_part("get_allocation")]
+        ))],
+        text="",
+    )
+    round1 = SimpleNamespace(
+        candidates=[SimpleNamespace(content=SimpleNamespace(role="model", parts=[]))],
+        text="Here is your summary.",
+    )
+
+    captured_contents = []
+
+    class _FakeModels:
+        def __init__(self):
+            self._responses = [round0, round1]
+
+        def generate_content(self, model, contents, config):
+            captured_contents.append(list(contents))  # snapshot per round
+            return self._responses.pop(0)
+
+    prov = GeminiVertexProvider.__new__(GeminiVertexProvider)  # skip credentialed __init__
+    prov.client = SimpleNamespace(models=_FakeModels())
+    prov.model = "gemini-x"
+
+    result = prov.run_with_tools(
+        [{"role": "user", "content": "summarize my portfolio"}],
+        SKILL_SCHEMAS,
+        executor=lambda name, args: {"tool": name},
+        max_rounds=1,
+    )
+
+    assert result.text == "Here is your summary."
+    assert [c.name for c in result.tool_calls] == ["get_portfolio_total", "get_allocation"]
+    # The round-1 request must end with ONE user turn holding BOTH function responses.
+    round1_contents = captured_contents[1]
+    resp_turn = round1_contents[-1]
+    assert resp_turn.role == "user"
+    assert len(resp_turn.parts) == 2  # matches the 2 function_call parts
+
+
 def test_no_arg_tool_omits_parameters_not_empty_object():
     """Vertex 400s on a FunctionDeclaration with an empty-properties OBJECT, so a
     no-arg tool (get_market_snapshot) must have parameters=None, and NO tool may

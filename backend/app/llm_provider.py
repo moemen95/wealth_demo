@@ -300,20 +300,22 @@ class GeminiVertexProvider:
 
             if allow_tools and fn_calls:
                 contents.append(candidate.content)  # model turn w/ function_call(s)
+                # Gemini requires the reply to a function-call turn to carry EXACTLY
+                # as many function_response parts as there were function_call parts,
+                # all in a SINGLE turn. Emitting one turn per call (for parallel
+                # calls) 400s with "number of function response parts is equal to
+                # the number of function call parts". So batch them into one turn.
+                response_parts = []
                 for fc in fn_calls:
                     args = dict(fc.args) if fc.args else {}
                     result = executor(fc.name, args)
                     executed.append(ExecutedToolCall(fc.name, args, result))
-                    contents.append(
-                        types.Content(
-                            role="user",
-                            parts=[
-                                types.Part.from_function_response(
-                                    name=fc.name, response={"result": result}
-                                )
-                            ],
+                    response_parts.append(
+                        types.Part.from_function_response(
+                            name=fc.name, response={"result": result}
                         )
                     )
+                contents.append(types.Content(role="user", parts=response_parts))
                 continue
 
             return LLMResult(text=resp.text or "", tool_calls=executed)

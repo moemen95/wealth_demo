@@ -124,3 +124,16 @@ def test_json_schema_to_gemini_uppercases_types():
 def test_all_skill_schemas_convert_to_gemini_tools():
     tools = GeminiVertexProvider._to_gemini_tools(SKILL_SCHEMAS)
     assert len(tools[0].function_declarations) == len(SKILL_SCHEMAS)
+
+
+def test_no_arg_tool_omits_parameters_not_empty_object():
+    """Vertex 400s on a FunctionDeclaration with an empty-properties OBJECT, so a
+    no-arg tool (get_market_snapshot) must have parameters=None, and NO tool may
+    convert to an empty-properties OBJECT."""
+    fds = GeminiVertexProvider._to_gemini_tools(SKILL_SCHEMAS)[0].function_declarations
+    by_name = {fd.name: fd for fd in fds}
+    assert by_name["get_market_snapshot"].parameters is None
+    for fd in fds:
+        p = fd.parameters
+        if p is not None and str(getattr(p, "type", "")).upper().endswith("OBJECT"):
+            assert p.properties, f"{fd.name} has an empty-properties OBJECT (Vertex 400)"

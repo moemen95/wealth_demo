@@ -237,11 +237,16 @@ class GeminiVertexProvider:
         declarations = []
         for t in tools:
             fn = t.get("function", t)
+            params = fn.get("parameters") or {}
+            # Vertex rejects a FunctionDeclaration whose parameters is an OBJECT
+            # with no properties (a no-arg tool, e.g. get_market_snapshot) with a
+            # 400 "Invalid argument". Omit parameters entirely in that case.
+            gemini_params = _json_schema_to_gemini(params) if params.get("properties") else None
             declarations.append(
                 types.FunctionDeclaration(
                     name=fn["name"],
                     description=fn.get("description", ""),
-                    parameters=_json_schema_to_gemini(fn.get("parameters", {})),
+                    parameters=gemini_params,
                 )
             )
         return [types.Tool(function_declarations=declarations)]

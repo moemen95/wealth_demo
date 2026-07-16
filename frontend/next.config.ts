@@ -15,7 +15,10 @@ if (!existsSync(envPath)) {
 }
 
 const nextConfig: NextConfig = {
-  reactStrictMode: true,
+  // Disabled so dev doesn't double-invoke effects (React StrictMode mounts twice
+  // in development) — that fired every fetch, including the slow/expensive agentic
+  // discovery + insights LLM calls, twice per load. Prod was never affected.
+  reactStrictMode: false,
 };
 
 export default nextConfig;

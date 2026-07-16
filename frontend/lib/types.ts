@@ -168,6 +168,25 @@ export interface ChatMessage {
   error?: string | null;
 }
 
+export interface ArchToolInfo {
+  name: string;
+  description?: string;
+}
+
+export interface ArchAgentInfo {
+  name: string;
+  kind: "orchestrator" | "subagent" | "runtime";
+  tools: ArchToolInfo[];
+}
+
+export interface ArchTopology {
+  key: Architecture;
+  label: string;
+  tagline: string;
+  note?: string;
+  agents: ArchAgentInfo[];
+}
+
 export const ARCHITECTURES: { id: Architecture; label: string; blurb: string }[] = [
   { id: "raw", label: "Raw", blurb: "Prompt only — no grounding" },
   { id: "skills", label: "Skills", blurb: "Structured tools, single-shot" },

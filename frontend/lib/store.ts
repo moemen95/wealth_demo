@@ -11,8 +11,8 @@ interface DemoState {
 }
 
 export const useDemoStore = create<DemoState>((set) => ({
-  persona: "middle",
-  architecture: "raw",
+  persona: "affluent",
+  architecture: "agentic",
   setPersona: (persona) => set({ persona }),
   setArchitecture: (architecture) => set({ architecture }),
 }));

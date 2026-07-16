@@ -64,6 +64,25 @@ def test_clean_follow_up_stops_on_enough():
     )
 
 
+def test_clean_follow_up_extracts_question_from_discovery_json():
+    from app.architectures.agentic_adk import _clean_follow_up
+
+    # The agent occasionally returns a whole discovery object instead of a plain
+    # sentence — we must surface just the question, never the raw JSON.
+    raw = (
+        '{"question":"What is your main financial goal today as you approach '
+        'retirement?","options":["Preserve capital while generating tax-efficient '
+        'income.","Create an estate plan."]}'
+    )
+    assert _clean_follow_up(raw) == (
+        "What is your main financial goal today as you approach retirement?"
+    )
+    # JSON wrapped in prose still works.
+    assert _clean_follow_up('Sure! {"question":"When do you plan to retire?"}') == (
+        "When do you plan to retire?"
+    )
+
+
 def test_scenarios_carry_follow_up_questions():
     from app.architectures.agentic_adk import _build_scenarios_and_analysis
 

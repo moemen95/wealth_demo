@@ -50,7 +50,9 @@ export function InsightScenarioChart({ projection }: { projection: InsightProjec
           {projection.horizon_label}
         </p>
       )}
-      <div className="h-52 w-full">
+      {/* min-w-0 + overflow-hidden keep the chart (and its legend, which carries
+          long scenario names) from forcing the page wider than the viewport. */}
+      <div className="h-52 w-full min-w-0 overflow-hidden">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.12} />
@@ -66,7 +68,13 @@ export function InsightScenarioChart({ projection }: { projection: InsightProjec
               formatter={(v: number) => fmt(v)}
               contentStyle={{ borderRadius: 8, fontSize: 12 }}
             />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Legend
+              wrapperStyle={{ fontSize: 11 }}
+              // Scenario titles are long; truncate so the legend never overflows.
+              formatter={(value: string) =>
+                value.length > 26 ? `${value.slice(0, 25)}…` : value
+              }
+            />
             {series.map((s, i) => (
               <Line
                 key={s.label}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ArchitectureToggle } from "@/components/ArchitectureToggle";
+import { ArchitectureTopology } from "@/components/ArchitectureTopology";
 import { FinancialSnapshot } from "@/components/FinancialSnapshot";
 import { InsightDetail } from "@/components/InsightDetail";
 import { InsightsCards } from "@/components/InsightsCard";
@@ -50,10 +51,14 @@ export default function HomePage() {
           </h2>
           <PersonaSelector value={persona} onChange={setPersona} />
           {persona && <FinancialSnapshot persona={persona} />}
+          <ArchitectureTopology architecture={architecture} />
         </aside>
 
-        {/* Main — insights are the hero; click one to converse about it. */}
-        <main className="space-y-6">
+        {/* Main — insights are the hero; click one to converse about it.
+            `min-w-0` lets this 1fr grid track shrink below its content's
+            min-content width (the recharts chart otherwise forces the whole
+            page wider than the viewport → horizontal scroll). */}
+        <main className="min-w-0 space-y-6">
           {persona && !selected && (
             <InsightsCards
               persona={persona}

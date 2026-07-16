@@ -42,22 +42,39 @@ def project_strategy(
     data = load_persona(persona_id)
     if start_value is None:
         start_value = float(data.get("portfolio_total", 0) or 0)
+
+    metric = metric if metric in {"portfolio_value", "annual_income", "after_tax_value"} else "portfolio_value"
+    withdrawal_rate = _clamp(float(withdrawal_rate), 0.02, 0.08)
+    tax_rate = _clamp(float(tax_rate), 0.0, 0.5)
+
+    # Retirement-income scenarios are DECUMULATION: the client draws income FROM the
+    # portfolio, they don't pay into it. Modelling the working-years surplus as an
+    # ongoing contribution here is what produced nonsense ("$1.26M contributed" for a
+    # retiree, and wildly inflated income). So for the income metric we ignore any
+    # contribution and net the withdrawal out of the balance instead.
+    is_income = metric == "annual_income"
     if monthly_contribution is None:
-        monthly_contribution = float(data["monthly_income"]) - float(
-            data["monthly_expenses"]
+        monthly_contribution = (
+            0.0
+            if is_income
+            else float(data["monthly_income"]) - float(data["monthly_expenses"])
         )
+    if is_income:
+        monthly_contribution = 0.0
 
     start_value = max(0.0, float(start_value))
     monthly_contribution = max(0.0, float(monthly_contribution))
     annual_return = _clamp(float(annual_return), 0.0, 0.12)
     years = int(_clamp(float(years), 3, 30))
-    metric = metric if metric in {"portfolio_value", "annual_income", "after_tax_value"} else "portfolio_value"
-    withdrawal_rate = _clamp(float(withdrawal_rate), 0.02, 0.08)
-    tax_rate = _clamp(float(tax_rate), 0.0, 0.5)
 
     m = annual_return / 12.0
 
     def balance_at(year: int) -> float:
+        if is_income:
+            # Decumulation: balance grows at the return but is drawn down by the
+            # sustainable withdrawal, so net growth = return − withdrawal_rate.
+            net = annual_return - withdrawal_rate
+            return max(0.0, start_value * (1 + net) ** year)
         n = year * 12
         growth = start_value * (1 + m) ** n
         if m == 0:

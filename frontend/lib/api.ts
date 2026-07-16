@@ -3,6 +3,7 @@ import type {
   AgenticDiscovery,
   AgenticMemory,
   Architecture,
+  ArchTopology,
   ChatResponse,
   InsightsResponse,
   PersonaDetail,
@@ -26,6 +27,9 @@ export const api = {
 
   getPersonas: () =>
     fetch(`${API_BASE}/personas`).then((r) => json<PersonaSummary[]>(r)),
+
+  getArchitectures: () =>
+    fetch(`${API_BASE}/architectures`).then((r) => json<ArchTopology[]>(r)),
 
   getPersona: (id: PersonaId) =>
     fetch(`${API_BASE}/personas/${id}`).then((r) => json<PersonaDetail>(r)),

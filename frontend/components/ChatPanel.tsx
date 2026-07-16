@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ArchitectureBadge } from "@/components/ArchitectureBadge";
+import { InsightScenarioChart } from "@/components/InsightScenarioChart";
 import { ToolTrace } from "@/components/ToolTrace";
+import { extractChartProjection } from "@/lib/chartData";
 import { cn } from "@/lib/utils";
 import type { Architecture, ChatMessage } from "@/lib/types";
 
@@ -76,15 +78,36 @@ function MessageBubble({ message, isLast }: { message: ChatMessage; isLast: bool
 
 function AssistantBubble({ message, isLast }: { message: ChatMessage; isLast: boolean }) {
   const text = useTypewriter(message.content, isLast);
+  // If the answer is a time-series JSON (e.g. "net worth through the years"), render
+  // it as a chart instead of a raw JSON blob, with the data available on demand.
+  const chart = useMemo(
+    () => (message.error ? null : extractChartProjection(message.content)),
+    [message.content, message.error],
+  );
   return (
-    <div className="flex flex-col items-start gap-1">
+    <div className="flex w-full flex-col items-start gap-1">
       <div
         className={cn(
-          "max-w-[95%] rounded-2xl rounded-bl-sm border px-3 py-2 text-sm",
+          "rounded-2xl rounded-bl-sm border px-3 py-2 text-sm",
+          chart ? "w-full max-w-full" : "max-w-[95%]",
           message.error ? "border-destructive/40 bg-destructive/5" : "bg-card",
         )}
       >
-        <div className="whitespace-pre-wrap break-words">{text}</div>
+        {chart ? (
+          <>
+            <InsightScenarioChart projection={chart} />
+            <details className="mt-2 text-xs text-muted-foreground">
+              <summary className="cursor-pointer select-none hover:text-foreground">
+                Show data
+              </summary>
+              <pre className="mt-1 max-h-60 overflow-auto whitespace-pre-wrap break-words rounded bg-muted/50 p-2 text-[11px] leading-snug">
+                {message.content}
+              </pre>
+            </details>
+          </>
+        ) : (
+          <div className="whitespace-pre-wrap break-words">{text}</div>
+        )}
       </div>
       {message.architecture && (
         <div className="pl-1">

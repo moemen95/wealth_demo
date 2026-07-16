@@ -279,6 +279,17 @@ def _clean_follow_up(text: str) -> str:
     t = (text or "").strip()
     if not t:
         return ""
+    # The agent sometimes replies with a whole discovery JSON object
+    # ({"question": "...", "options": [...]}) instead of a plain follow-up
+    # sentence. Pull the question out rather than dumping raw JSON into the UI.
+    if "{" in t and '"question"' in t:
+        try:
+            obj = json.loads(t[t.index("{") : t.rindex("}") + 1])
+            q = str(obj.get("question", "")).strip()
+            if q:
+                t = q
+        except (ValueError, json.JSONDecodeError):
+            pass
     # Strip a leading ENOUGH token / stop signal.
     if t.upper().startswith("ENOUGH") or t.upper() == "NONE":
         return ""
@@ -425,14 +436,20 @@ async def agentic_insights(
         '     "recommended_action": "the one action to take",\n'
         '     "assumptions": ["..."]  (ONLY when the client declined; else []),\n'
         '     "annual_return": <0.0-0.12 nominal return for this strategy>,\n'
-        '     "monthly_contribution": <CAD/month added; use the real surplus>,\n'
+        '     "monthly_contribution": <CAD/month the client will still ADD; use the '
+        "real surplus for someone saving, but 0 for a retiree/near-retiree who is "
+        'drawing income rather than contributing>,\n'
         '     "follow_up_questions": ["...","..."]  (2-3 short, specific questions '
         "THIS client would likely ask about THIS scenario, in first person)\n"
         "  } ]  (exactly 3, each with a DIFFERENT strategy/return)\n"
         "}\n"
-        "Pick the metric that best fits the goal. Choose each scenario's "
-        "annual_return to reflect its risk (e.g. conservative vs growth). Use REAL "
-        "figures from the tools for balances and surplus."
+        "Pick the metric that best fits the goal: for a RETIREMENT-INCOME or "
+        "capital-preservation goal use metric='annual_income' (it is modelled as a "
+        "sustainable drawdown from the portfolio — the client does NOT contribute, so "
+        "set monthly_contribution=0 and choose a realistic withdrawal_rate ~0.03-0.05). "
+        "Use metric='portfolio_value' only for someone still accumulating. Choose each "
+        "scenario's annual_return to reflect its risk (conservative vs growth). Use "
+        "REAL figures from the tools for balances and surplus."
     )
     text, tool_calls = await _run_with_retry(persona_id, session_id, prompt)
     cards, analysis = _build_scenarios_and_analysis(

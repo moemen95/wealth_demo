@@ -255,7 +255,12 @@ function AgenticInsights({
             compact={compact}
           />
           {phase === "insights" && insights?.analysis && (
-            <InsightAnalysis analysis={insights.analysis} />
+            <InsightAnalysis
+              analysis={insights.analysis}
+              // A pending follow-up means the agent still wants context — don't
+              // commit to a recommendation yet.
+              preliminary={!!followUp && refineCount < MAX_REFINES}
+            />
           )}
           {phase === "insights" && insights && (
             <ToolTrace calls={insights.tool_calls} />
@@ -293,7 +298,7 @@ function AgenticInsights({
 
           {insights?.analysis && <InsightAnalysis analysis={insights.analysis} compact />}
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
             <InsightCard insight={selected} pinned />
             <Card className="flex flex-col overflow-hidden">
               <ChatPanel

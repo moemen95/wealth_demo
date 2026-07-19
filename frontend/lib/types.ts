@@ -190,5 +190,6 @@ export interface ArchTopology {
 export const ARCHITECTURES: { id: Architecture; label: string; blurb: string }[] = [
   { id: "raw", label: "Raw", blurb: "Prompt only — no grounding" },
   { id: "skills", label: "Skills", blurb: "Structured tools, single-shot" },
-  { id: "agentic", label: "Agentic", blurb: "Planner + subagents + memory" },
+  // `id` stays "agentic" (the backend contract); only the display label changes.
+  { id: "agentic", label: "Intelligent", blurb: "Planner + subagents + memory" },
 ];

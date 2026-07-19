@@ -86,7 +86,7 @@ export default function ComparePage() {
         <p className="text-sm text-muted-foreground">
           One persona, three architectures, side-by-side. Compare each approach&apos;s{" "}
           <b>insights</b> — <b>Raw</b> jumps to a risky call with no grounding,{" "}
-          <b>Skills</b> adds grounded context, <b>Agentic</b> builds full scenarios
+          <b>Skills</b> adds grounded context, <b>Intelligent</b> builds full scenarios
           with alternatives and a projection. Click any insight to converse, or ask all
           three at once below.
         </p>
@@ -106,7 +106,9 @@ export default function ComparePage() {
             return (
               <Card key={arch} className="flex flex-col overflow-hidden">
                 <div className="border-b bg-muted/40 px-3 py-2">
-                  <h2 className="font-semibold capitalize">{arch}</h2>
+                  <h2 className="font-semibold">
+                    {ARCHITECTURES.find((a) => a.id === arch)?.label ?? arch}
+                  </h2>
                   <p className="text-xs text-muted-foreground">
                     {ARCHITECTURES.find((a) => a.id === arch)?.blurb}
                   </p>

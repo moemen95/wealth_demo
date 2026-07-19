@@ -5,7 +5,7 @@ import { Bot, GitBranch, Wrench } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import type { ArchAgentInfo, Architecture, ArchTopology } from "@/lib/types";
+import { ARCHITECTURES, type ArchAgentInfo, type Architecture, type ArchTopology } from "@/lib/types";
 
 /**
  * Sidebar panel (under the Financial Snapshot) that reveals the plumbing of the
@@ -47,7 +47,9 @@ export function ArchitectureTopology({ architecture }: { architecture: Architect
         </div>
 
         <div>
-          <p className="text-sm font-semibold text-foreground">{topo.label}</p>
+          <p className="text-sm font-semibold text-foreground">
+            {ARCHITECTURES.find((a) => a.id === topo.key)?.label ?? topo.label}
+          </p>
           <p className="text-xs text-muted-foreground">{topo.tagline}</p>
         </div>
 

@@ -12,14 +12,19 @@ import { TopBar } from "@/components/TopBar";
 import { Card } from "@/components/ui/card";
 import { useChat } from "@/hooks/useChat";
 import { useDemoStore } from "@/lib/store";
-import { ARCHITECTURES, type Architecture, type Insight, type PersonaId } from "@/lib/types";
+import {
+  ARCHITECTURES,
+  PERSONA_LABELS,
+  type Architecture,
+  type Insight,
+  type PersonaId,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const PERSONAS: { id: PersonaId; label: string }[] = [
-  { id: "first", label: "First" },
-  { id: "middle", label: "Middle" },
-  { id: "affluent", label: "Mass Affluent" },
-];
+const PERSONAS = (Object.keys(PERSONA_LABELS) as PersonaId[]).map((id) => ({
+  id,
+  label: PERSONA_LABELS[id],
+}));
 
 type ChatApi = ReturnType<typeof useChat>;
 
@@ -86,7 +91,7 @@ export default function ComparePage() {
         <p className="text-sm text-muted-foreground">
           One persona, three architectures, side-by-side. Compare each approach&apos;s{" "}
           <b>insights</b> — <b>Raw</b> jumps to a risky call with no grounding,{" "}
-          <b>Skills</b> adds grounded context, <b>Intelligent</b> builds full scenarios
+          <b>Tools</b> adds grounded context, <b>Intelligent</b> builds full scenarios
           with alternatives and a projection. Click any insight to converse, or ask all
           three at once below.
         </p>

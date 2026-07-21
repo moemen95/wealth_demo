@@ -12,7 +12,7 @@ const md = (s?: string | null) => (s ? s.replace(/\*\*/g, "").replace(/__/g, "")
 /**
  * Renders an insight in the layout its `kind` implies:
  *   basic     — plain title/body/cta
- *   context   — Skills: body + "why this matters" + supporting figures
+ *   context   — Tools: body + "why this matters" + supporting figures
  *   scenario  — Raw/Agentic: short/long-term timeline, alternatives,
  *               recommended action, and (Agentic) a projection chart.
  *

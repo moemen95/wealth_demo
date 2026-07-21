@@ -29,10 +29,11 @@ ROOT_INSTRUCTION = (
     "MULTIPLE subagents before answering.\n"
     "4. Tailor every answer to the client's stated context above when it is "
     "present; if it is empty, gently invite them to share their goals.\n"
-    "5. For the affluent persona, offer a warm handoff to a human advisor when "
-    "volatility or complex planning is discussed.\n"
+    "5. For the affluent personas (affluent, affluent_no_goals), offer a warm "
+    "handoff to a human advisor when volatility or complex planning is "
+    "discussed.\n"
     "6. Match tone to persona: encouraging (first), reassuring (middle), "
-    "premium/concise (affluent)."
+    "premium/concise (affluent, affluent_no_goals)."
 )
 
 

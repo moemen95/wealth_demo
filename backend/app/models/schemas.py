@@ -6,7 +6,7 @@ from typing import Any, Literal, Optional
 from pydantic import BaseModel, Field
 
 Architecture = Literal["raw", "skills", "agentic"]
-PersonaId = Literal["first", "middle", "affluent"]
+PersonaId = Literal["first", "middle", "affluent", "affluent_no_goals"]
 
 
 class ToolCall(BaseModel):

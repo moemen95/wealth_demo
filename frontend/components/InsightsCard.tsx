@@ -60,7 +60,7 @@ export function InsightsCards({
   );
 }
 
-/** Direct, stateless fetch — Raw, Skills, and Agentic on /compare. */
+/** Direct, stateless fetch — Raw, Tools, and Intelligent on /compare. */
 function StaticInsights({
   persona,
   architecture,

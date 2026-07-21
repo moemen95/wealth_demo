@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Wealth Insights Demo",
   description:
-    "Raw Prompting vs Skills vs Agentic (Google ADK) — on OpenAI or Gemini/Vertex.",
+    "Raw Prompting vs Tools vs Intelligent (Google ADK) — on OpenAI or Gemini/Vertex.",
 };
 
 export default function RootLayout({

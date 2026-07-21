@@ -50,7 +50,9 @@ export function ArchitectureTopology({ architecture }: { architecture: Architect
           <p className="text-sm font-semibold text-foreground">
             {ARCHITECTURES.find((a) => a.id === topo.key)?.label ?? topo.label}
           </p>
-          <p className="text-xs text-muted-foreground">{topo.tagline}</p>
+          <p className="text-xs text-muted-foreground">
+            {ARCHITECTURES.find((a) => a.id === topo.key)?.blurb ?? topo.tagline}
+          </p>
         </div>
 
         {topo.agents.length === 0 ? (

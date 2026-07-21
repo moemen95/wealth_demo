@@ -15,11 +15,20 @@ def test_health():
 def test_personas_list_and_detail():
     r = client.get("/personas")
     assert r.status_code == 200
-    assert len(r.json()) == 3
+    assert len(r.json()) == 4
 
     detail = client.get("/personas/affluent").json()
     assert detail["portfolio_total"] > 1_000_000
     assert detail["allocation"]
+
+
+def test_affluent_no_goals_mirrors_affluent_without_goals():
+    affluent = client.get("/personas/affluent").json()
+    no_goals = client.get("/personas/affluent_no_goals").json()
+    assert no_goals["goals"] == []
+    assert affluent["goals"]  # the original still ships preset goals
+    assert no_goals["portfolio_total"] == affluent["portfolio_total"]
+    assert no_goals["net_worth"] == affluent["net_worth"]
 
 
 def test_persona_detail_exposes_net_worth_and_debts():

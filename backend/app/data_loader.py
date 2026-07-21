@@ -11,6 +11,9 @@ _PERSONA_FILES = {
     "first": "persona_first.json",
     "middle": "persona_middle.json",
     "affluent": "persona_affluent.json",
+    # Same profile as `affluent` with an empty `goals` list — lets the demo show
+    # the Intelligent flow discovering goals instead of reading them off file.
+    "affluent_no_goals": "persona_affluent_no_goals.json",
 }
 
 VALID_PERSONAS = tuple(_PERSONA_FILES.keys())

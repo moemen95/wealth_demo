@@ -1,0 +1,42 @@
+{
+  "persona_id": "affluent_no_goals",
+  "name": "Robert & Susan L.",
+  "age": 61,
+  "tagline": "Pre-retiree, no stated goals",
+  "monthly_income": 18000,
+  "monthly_expenses": 11000,
+  "accounts": {
+    "chequing": 45000,
+    "savings": 220000,
+    "credit_card_balance": 0
+  },
+  "debts": [],
+  "investments": [
+    {"type": "Canadian Equity", "value": 735000, "rate": null},
+    {"type": "US Equity", "value": 612500, "rate": null},
+    {"type": "International Equity", "value": 245000, "rate": null},
+    {"type": "Fixed Income", "value": 588000, "rate": 0.038},
+    {"type": "Cash & Equivalents", "value": 269500, "rate": 0.029}
+  ],
+  "allocation": {
+    "Canadian Equity": 735000,
+    "US Equity": 612500,
+    "International Equity": 245000,
+    "Fixed Income": 588000,
+    "Cash & Equivalents": 269500
+  },
+  "portfolio_total": 2450000,
+  "performance": {
+    "1M": {"pct": -0.042, "benchmark": -0.038},
+    "3M": {"pct": -0.061, "benchmark": -0.055},
+    "YTD": {"pct": -0.028, "benchmark": -0.021},
+    "1Y": {"pct": 0.052, "benchmark": 0.067}
+  },
+  "risk_profile": "balanced",
+  "advisor": "Jordan M., Senior Wealth Advisor",
+  "goals": [],
+  "upcoming_events": [
+    {"type": "market_volatility", "days_out": 0, "amount": null},
+    {"type": "advisor_review", "days_out": 21, "amount": null}
+  ]
+}

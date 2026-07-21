@@ -36,7 +36,7 @@ def _tool(name: str, description: str, properties: dict, required: list[str]) ->
     }
 
 
-_PERSONA_PROP = {"persona_id": {"type": "string", "description": "one of: first, middle, affluent"}}
+_PERSONA_PROP = {"persona_id": {"type": "string", "description": "one of: first, middle, affluent, affluent_no_goals"}}
 
 SKILL_SCHEMAS: list[dict] = [
     _tool(

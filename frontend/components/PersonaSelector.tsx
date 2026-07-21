@@ -4,18 +4,24 @@ import { useEffect, useState } from "react";
 import { Sprout, Landmark, Gem } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn, formatCurrency } from "@/lib/utils";
-import type { PersonaId, PersonaSummary } from "@/lib/types";
+import { PERSONA_LABELS, type PersonaId, type PersonaSummary } from "@/lib/types";
 
 const ICONS: Record<PersonaId, typeof Sprout> = {
   first: Sprout,
   middle: Landmark,
   affluent: Gem,
+  // Same client profile as `affluent`, minus the preset goals — same visuals.
+  affluent_no_goals: Gem,
 };
+
+const AFFLUENT_ACCENT =
+  "data-[active=true]:border-persona-affluent data-[active=true]:ring-persona-affluent/30 text-persona-affluent";
 
 const ACCENT: Record<PersonaId, string> = {
   first: "data-[active=true]:border-persona-first data-[active=true]:ring-persona-first/30 text-persona-first",
   middle: "data-[active=true]:border-persona-middle data-[active=true]:ring-persona-middle/30 text-persona-middle",
-  affluent: "data-[active=true]:border-persona-affluent data-[active=true]:ring-persona-affluent/30 text-persona-affluent",
+  affluent: AFFLUENT_ACCENT,
+  affluent_no_goals: AFFLUENT_ACCENT,
 };
 
 export function PersonaSelector({
@@ -57,7 +63,7 @@ export function PersonaSelector({
               </div>
             </div>
             <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-              <span className="capitalize">{p.persona_id} · age {p.age}</span>
+              <span>{PERSONA_LABELS[p.persona_id]} · age {p.age}</span>
               <span className="font-medium text-foreground">
                 {formatCurrency(p.portfolio_total)}
               </span>

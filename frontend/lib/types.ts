@@ -1,5 +1,5 @@
 export type Architecture = "raw" | "skills" | "agentic";
-export type PersonaId = "first" | "middle" | "affluent";
+export type PersonaId = "first" | "middle" | "affluent" | "affluent_no_goals";
 
 export interface PersonaSummary {
   persona_id: PersonaId;
@@ -73,7 +73,7 @@ export interface Insight {
   title: string;
   body: string;
   cta: string;
-  // Skills ("context")
+  // Tools ("context")
   context?: string | null;
   data_points?: string[] | null;
   // Agentic: assumptions stated when the client declined to share goals
@@ -189,7 +189,20 @@ export interface ArchTopology {
 
 export const ARCHITECTURES: { id: Architecture; label: string; blurb: string }[] = [
   { id: "raw", label: "Raw", blurb: "Prompt only — no grounding" },
-  { id: "skills", label: "Skills", blurb: "Structured tools, single-shot" },
+  // `id` stays "skills" (the backend contract); only the display label changes.
+  { id: "skills", label: "Tools", blurb: "Structured tools, single-shot" },
   // `id` stays "agentic" (the backend contract); only the display label changes.
-  { id: "agentic", label: "Intelligent", blurb: "Planner + subagents + memory" },
+  {
+    id: "agentic",
+    label: "Intelligent",
+    blurb: "Tangerine Planner + sub-agents + skills + memory",
+  },
 ];
+
+/** Display names for personas — the raw ids are not presentable. */
+export const PERSONA_LABELS: Record<PersonaId, string> = {
+  first: "First",
+  middle: "Middle",
+  affluent: "Mass Affluent",
+  affluent_no_goals: "Mass Affluent (No Goals)",
+};

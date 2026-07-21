@@ -19,6 +19,11 @@ lib64/
 parts/
 sdist/
 var/
+
+# The `lib/` rule above is a Python-packaging convention; it must NOT swallow the
+# frontend's TypeScript source in frontend/lib/ (types, api client, store, utils).
+!frontend/lib/
+!frontend/lib/**
 wheels/
 share/python-wheels/
 *.egg-info/
@@ -216,3 +221,22 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ─── Frontend (Node / Next.js) ───
+node_modules/
+.next/
+out/
+next-env.d.ts
+.pnpm-store/
+*.tsbuildinfo
+.env.local
+.env.*.local
+
+# ─── Editor / OS ───
+.DS_Store
+
+# Local Claude Code settings
+.claude/settings.local.json
+
+# PowerPoint lock/temp files
+~$*

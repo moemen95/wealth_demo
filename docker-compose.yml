@@ -1,0 +1,25 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - backend/.env
+    environment:
+      CORS_ORIGINS: "http://localhost:3000"
+    volumes:
+      # Mount host ADC so the Gemini/Vertex impersonation path works in-container
+      # without baking any long-lived key into the image (SPEC §5/§18).
+      - ${HOME}/.config/gcloud:/root/.config/gcloud:ro
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Baked into the client bundle at build time; browser talks to the
+        # backend on the host-published port.
+        NEXT_PUBLIC_API_BASE: "http://localhost:8000"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend

@@ -1,0 +1,33 @@
+{
+  "persona_id": "middle",
+  "name": "Priya S.",
+  "age": 42,
+  "tagline": "Mid-career, cash-heavy, GIC renewal",
+  "monthly_income": 7800,
+  "monthly_expenses": 5200,
+  "accounts": {
+    "chequing": 3200,
+    "savings": 42000,
+    "credit_card_balance": 0
+  },
+  "debts": [],
+  "investments": [
+    {"type": "GIC", "value": 25000, "rate": 0.041, "maturity_date": "2026-08-15"}
+  ],
+  "allocation": {
+    "GIC / Cash": 25000
+  },
+  "portfolio_total": 25000,
+  "performance": {
+    "1M": {"pct": 0.003, "benchmark": 0.011},
+    "3M": {"pct": 0.010, "benchmark": 0.028},
+    "YTD": {"pct": 0.024, "benchmark": 0.061},
+    "1Y": {"pct": 0.041, "benchmark": 0.093}
+  },
+  "risk_profile": "conservative",
+  "advisor": null,
+  "goals": ["home_down_payment", "retirement"],
+  "upcoming_events": [
+    {"type": "gic_maturity", "days_out": 30, "amount": 25000}
+  ]
+}

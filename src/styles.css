@@ -30,7 +30,10 @@ button { font: inherit; cursor: pointer; }
 .eyebrow { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--orange); font-weight: 600; }
 
 .columns { display: grid; grid-template-columns: 400px 1fr; gap: 28px; align-items: start; }
-@media (max-width: 900px) { .columns { grid-template-columns: 1fr; } }
+@media (max-width: 900px) {
+  .columns { grid-template-columns: 1fr; }
+  .panel { position: static; } /* sticky only makes sense beside the phone, not stacked above it */
+}
 
 /* ---------- Left panel ---------- */
 .panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; position: sticky; top: 16px; }

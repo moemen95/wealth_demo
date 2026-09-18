@@ -30,13 +30,13 @@ button { font: inherit; cursor: pointer; }
 .eyebrow { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--orange); font-weight: 600; }
 
 .columns { display: grid; grid-template-columns: 400px 1fr; gap: 28px; align-items: start; }
-@media (max-width: 900px) {
-  .columns { grid-template-columns: 1fr; }
-  .panel { position: static; } /* sticky only makes sense beside the phone, not stacked above it */
-}
+@media (max-width: 900px) { .columns { grid-template-columns: 1fr; } }
 
 /* ---------- Left panel ---------- */
 .panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; position: sticky; top: 16px; }
+/* Sticky only makes sense beside the phone; stacked above it, it would scroll over the phone.
+   Must come after the base rule — same specificity, so source order decides. */
+@media (max-width: 900px) { .panel { position: static; } }
 .panel h2 { font-size: 18px; margin-bottom: 10px; }
 .panel h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 16px 0 6px; }
 .field { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; color: var(--ink-2); }

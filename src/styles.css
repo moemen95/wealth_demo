@@ -111,6 +111,8 @@ button { font: inherit; cursor: pointer; }
 .why div { display: flex; justify-content: space-between; gap: 10px; border-top: 1px dashed var(--line); padding-top: 4px; }
 .why dt { color: var(--muted); } .why dd { margin: 0; text-align: right; font-weight: 500; }
 .ai-foot { font-size: 10.5px; color: var(--muted); margin-top: 8px; }
+.ai-pending { color: var(--orange); animation: ai-pulse 1.2s ease-in-out infinite; }
+@keyframes ai-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
 
 /* Toggles */
 .toggles { padding: 4px 14px; }

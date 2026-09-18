@@ -1,5 +1,6 @@
 import type { SummaryOutput } from './types.ts'
 import { GUARDRAILS } from './summary.ts'
+import { ungroundedNumbers } from './grounding.ts'
 
 export type LlmMode = 'templated' | 'openai' | 'gemini'
 
@@ -8,7 +9,7 @@ export interface LlmConfig {
   model: string | null
 }
 
-/** Ask the dev server which mode it's in (never exposes the key). Falls back to templated. */
+/** Ask the server which mode it's in (never exposes credentials). Falls back to templated. */
 export async function getLlmConfig(): Promise<LlmConfig> {
   try {
     const r = await fetch('/api/config')
@@ -20,9 +21,12 @@ export async function getLlmConfig(): Promise<LlmConfig> {
 }
 
 /**
- * Optional real-LLM rewrite of the headline + narrative. The LLM only ever sees `facts`
- * (the numbers the templated generator was allowed to use) plus the guardrails, and must
- * return the same shape. Anything malformed ⇒ null, and the caller keeps the templated copy.
+ * Optional real-LLM rewrite of the headline + narrative.
+ *
+ * The LLM gets the templated draft (already correct and grounded) plus the `facts` whitelist and the
+ * guardrails, and is asked to rewrite for warmth/clarity without changing a number. The reply is
+ * verified here with the same grounding check the tests use: if it contains ANY number that is not a
+ * registered fact it is discarded and the templated copy stays. Malformed/failed ⇒ null, same effect.
  */
 export async function fetchLlmSummary(
   summary: SummaryOutput,
@@ -35,13 +39,19 @@ export async function fetchLlmSummary(
       signal,
       body: JSON.stringify({
         facts: { ...summary.facts, band: summary.simulation.kpis.band, segment_label: summary.segment_label },
+        draft: { headline: summary.headline, narrative: summary.narrative },
         guardrails: GUARDRAILS,
-        shape: { headline: 'one sentence, ends with the chance money lasts', narrative: '2-4 sentences' },
+        shape: { headline: 'one sentence, must include the chance money lasts and the end age', narrative: '2-4 sentences' },
       }),
     })
     if (!r.ok) return null
     const data = (await r.json()) as Partial<Pick<SummaryOutput, 'headline' | 'narrative'>>
     if (typeof data.headline !== 'string' || typeof data.narrative !== 'string') return null
+    const bad = ungroundedNumbers(data.headline + ' ' + data.narrative, summary.facts)
+    if (bad.length > 0) {
+      console.warn('[llm] discarding reply with un-grounded numbers:', bad)
+      return null
+    }
     return { headline: data.headline, narrative: data.narrative }
   } catch {
     return null

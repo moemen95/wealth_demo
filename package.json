@@ -6,6 +6,8 @@
   "description": "Mock, runnable demo of the AI 'Future Outlook' summary (Monte Carlo + AI narrative) for the Tangerine Wealth 'My Future' tab.",
   "scripts": {
     "dev": "vite",
+    "frontend": "vite",
+    "backend": "node server/index.ts",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",

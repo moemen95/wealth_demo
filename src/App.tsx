@@ -30,6 +30,7 @@ export default function App() {
   const [seed, setSeed] = useState(DEFAULT_SEED)
   const [llm, setLlm] = useState<LlmConfig>({ llm_mode: 'templated', model: null })
   const [llmCopy, setLlmCopy] = useState<{ key: string; headline: string; narrative: string } | null>(null)
+  const [llmPending, setLlmPending] = useState(false)
 
   useEffect(() => {
     getLlmConfig().then(setLlm)
@@ -49,8 +50,11 @@ export default function App() {
   useEffect(() => {
     if (llm.llm_mode === 'templated') return
     const ctrl = new AbortController()
+    setLlmPending(true)
     fetchLlmSummary(result.summary, ctrl.signal).then((copy) => {
+      if (ctrl.signal.aborted) return
       if (copy) setLlmCopy({ key: factsKey, ...copy })
+      setLlmPending(false)
     })
     return () => ctrl.abort()
   }, [llm.llm_mode, factsKey, result.summary])
@@ -101,7 +105,14 @@ export default function App() {
           seed={seed}
           onSeed={setSeed}
         />
-        <MobileFuture result={result} summary={summary} toggles={toggles} onToggles={setToggles} />
+        <MobileFuture
+          result={result}
+          summary={summary}
+          toggles={toggles}
+          onToggles={setToggles}
+          llmPending={llm.llm_mode !== 'templated' && llmPending && summary.source === 'templated'}
+          llmMode={llm.llm_mode}
+        />
       </main>
     </div>
   )

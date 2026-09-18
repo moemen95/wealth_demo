@@ -3,7 +3,15 @@ import type { SummaryOutput } from '../engine/types.ts'
 
 const bandClass = (b?: string) => (b === 'Good' ? 'good' : b === 'Borderline' ? 'borderline' : b === 'At Risk' ? 'risk' : '')
 
-export function AiSummaryCard({ summary }: { summary: SummaryOutput }) {
+interface Props {
+  summary: SummaryOutput
+  pending?: boolean
+  pendingProvider?: string
+}
+
+const providerName = (p: string) => (p === 'gemini' ? 'Gemini' : p === 'openai' ? 'OpenAI' : p)
+
+export function AiSummaryCard({ summary, pending = false, pendingProvider = '' }: Props) {
   const [open, setOpen] = useState(true)
   const [why, setWhy] = useState(false)
   const band = summary.simulation.kpis.band
@@ -54,8 +62,9 @@ export function AiSummaryCard({ summary }: { summary: SummaryOutput }) {
             AI summary ·{' '}
             {summary.source === 'templated'
               ? 'templated from simulation'
-              : `${summary.source === 'gemini' ? 'Gemini' : 'OpenAI'} over simulation facts`}{' '}
+              : `${providerName(summary.source)} over simulation facts`}{' '}
             · {summary.segment_label}
+            {pending && <span className="ai-pending"> · refining with {providerName(pendingProvider)}…</span>}
           </div>
         </div>
       )}

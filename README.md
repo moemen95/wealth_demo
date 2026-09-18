@@ -16,11 +16,24 @@ npm i && npm run dev
 Open <http://localhost:5173>. Left column = 30 client segments + **Custom** with every field editable;
 right column = the phone. Any edit or toggle re-runs the Monte Carlo and regenerates the summary live.
 
+### Make targets (all read the root `.env`)
+
+Every target sources `.env` first, so one file configures both the backend and the frontend.
+Shell variables still win (`LLM_MODE=gemini make dev`); `ENV_FILE=.env.staging make dev` picks another file.
+
 ```bash
-npm test           # engine + summary-grounding unit tests
-npm run calibrate  # prints which badge each of the 30 segments lands on
-npm run build      # type-check + production build
+make env        # create .env from .env.example (once)
+make dev        # backend (:8787) + frontend (:5173) together; /api is proxied to the backend
+make frontend   # Vite only — mounts /api in-process unless BACKEND_URL is set
+make backend    # standalone API backend (the LLM proxy) — /healthz, /api/config, /api/summary
+make test       # engine + summary-grounding unit tests
+make build      # type-check + production build (dist/)
+make preview    # serve dist/ + backend
+make calibrate  # which badge each of the 30 segments lands on
+make help       # everything above
 ```
+
+Needs Node ≥ 22.18 (the backend runs its `.ts` files directly).
 
 ## What’s inside
 
@@ -39,7 +52,11 @@ src/
 ├── components/             ClientPanel, MobileFuture, FanChart, AiSummaryCard,
 │                           ScenarioToggles, OutcomeDistribution, GoalGauge
 └── App.tsx
-vite.config.ts              dev server + the `/api/summary` LLM proxy (key stays server-side)
+server/
+├── llm.ts                  providers (OpenAI, Gemini/Vertex via ADC) + the /api handler
+└── index.ts                standalone backend: CORS, /healthz, mounts the handler
+vite.config.ts              dev server; mounts the /api handler in-process or proxies to BACKEND_URL
+Makefile                    targets that source .env for both processes
 scripts/calibrate.ts        badge coverage check for the seed data
 ```
 
@@ -75,11 +92,12 @@ modelled*, *general information, not advice*; segment membership is personalizat
 
 ### Optional real-LLM mode
 
-The Vite dev server exposes `POST /api/summary` (see `vite.config.ts`). The browser sends only the
-`facts` + guardrails; the server calls the provider with a JSON-only prompt and returns
+`POST /api/summary` lives in `server/llm.ts` and is served either by the standalone backend
+(`make backend` / `make dev`) or in-process by the Vite dev server (`npm run dev`). The browser sends
+only the `facts` + guardrails; the server calls the provider with a JSON-only prompt and returns
 `{headline, narrative}` in the same shape. Credentials never reach the client. Any error or malformed
 reply silently falls back to the templated copy; the page header and the card footer show which mode
-is active, and the dev-server log prints the resolved provider on start.
+is active, and both processes print the resolved provider on start.
 
 **Gemini on Google Cloud (Vertex AI) — uses the credentials already in your environment:**
 

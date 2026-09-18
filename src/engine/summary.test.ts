@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { allowedTokens, numbersIn, ungroundedNumbers } from './grounding.ts'
 import { runPipeline } from './pipeline.ts'
 import { NO_TOGGLES } from './scenarios.ts'
 import type { ClientInputs, SummaryOutput } from './types.ts'
@@ -10,19 +11,6 @@ const client: ClientInputs = {
   expected_return: 5.5, return_volatility: 9, inflation: 2.5, risk_profile: 'Balanced',
 }
 const seg = { id: 11, label: 'Mid-career mortgage-heavy accumulator' }
-
-/** Every way a registered fact may legitimately appear in prose. */
-function allowedTokens(facts: Record<string, number>): Set<string> {
-  const out = new Set<string>()
-  for (const v of Object.values(facts)) {
-    out.add(String(v))
-    out.add(Math.round(v).toLocaleString('en-US'))
-    out.add(String(Math.round(v)))
-  }
-  return out
-}
-// Commas only count inside a number ("1,500"), never trailing ("age 72, 90 points").
-const numbersIn = (text: string) => text.match(/\d(?:[\d,]*\d)?(?:\.\d+)?/g) ?? []
 
 function assertGrounded(s: SummaryOutput) {
   const allowed = allowedTokens(s.facts)
@@ -81,6 +69,14 @@ describe('templated summary generator', () => {
     expect(s.scenario_delta).toContain(`${toggled.active.kpis.money_lasts_pct}%`)
     expect(s.narrative).toContain(s.scenario_delta!)
     assertGrounded(s)
+  })
+
+  it('grounding helper flags invented numbers and accepts formatted facts', () => {
+    const f = summary.facts
+    const sample = `about a ${f.money_lasts_pct}% chance, $${f.nw_at_retirement.toLocaleString('en-US')} at ${f.retirement_age} over ${f.runs.toLocaleString('en-US')} runs`
+    expect(ungroundedNumbers(sample, f)).toEqual([])
+    // 7.77 and 999,999,999 cannot be simulation facts for any segment.
+    expect(ungroundedNumbers('roughly 7.77% chance and $999,999,999', summary.facts)).toEqual(['7.77', '999,999,999'])
   })
 
   it('stays grounded for at-risk and comfortably-funded clients too', () => {

@@ -13,11 +13,14 @@ interface Props {
   summary: SummaryOutput
   toggles: ScenarioToggles
   onToggles: (t: ScenarioToggles) => void
+  /** True while a real-LLM rewrite is in flight and the templated copy is being shown meanwhile. */
+  llmPending?: boolean
+  llmMode?: 'templated' | 'openai' | 'gemini'
 }
 
 const bandClass = (b: string) => (b === 'Good' ? 'good' : b === 'Borderline' ? 'borderline' : 'risk')
 
-export function MobileFuture({ result, summary, toggles, onToggles }: Props) {
+export function MobileFuture({ result, summary, toggles, onToggles, llmPending = false, llmMode = 'templated' }: Props) {
   const [more, setMore] = useState(false)
   const { active } = result
   const k = active.kpis
@@ -56,7 +59,7 @@ export function MobileFuture({ result, summary, toggles, onToggles }: Props) {
             <span className={`badge ${bandClass(k.band)}`}>{k.band}</span>
           </div>
 
-          <AiSummaryCard summary={summary} />
+          <AiSummaryCard summary={summary} pending={llmPending} pendingProvider={llmMode} />
 
           <ScenarioTogglesCard toggles={toggles} onChange={onToggles} />
 

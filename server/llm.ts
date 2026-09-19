@@ -161,12 +161,13 @@ export interface GeminiResponse {
   usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; totalTokenCount?: number }
 }
 
+// Plain field, not a `public readonly` parameter property: server/*.ts runs under Node's strip-only
+// TypeScript mode, which only accepts erasable syntax.
 export class GeminiParseError extends Error {
-  constructor(
-    message: string,
-    public readonly finishReason: string,
-  ) {
+  readonly finishReason: string
+  constructor(message: string, finishReason: string) {
     super(message)
+    this.finishReason = finishReason
   }
 }
 

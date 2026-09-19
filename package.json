@@ -10,7 +10,8 @@
     "backend": "node server/index.ts",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "vitest run",
+    "test": "vitest run && npm run check:node",
+    "check:node": "node --input-type=module -e \"await import('./server/llm.ts'); console.log('server/*.ts loads under Node strip-types: ok')\"",
     "test:watch": "vitest",
     "calibrate": "node scripts/calibrate.ts"
   },

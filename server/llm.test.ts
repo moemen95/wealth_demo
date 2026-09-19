@@ -1,12 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { geminiThinkingBudget, parseGeminiJson, vertexGenerateContentUrl } from './llm.ts'
+import { GeminiParseError, geminiThinkingBudget, geminiThinkingConfig, parseGeminiJson, vertexGenerateContentUrl } from './llm.ts'
 
-describe('Gemini thinking budget', () => {
-  it('turns thinking off for 2.5 flash, keeps the minimum for 2.5 pro, omits it otherwise', () => {
-    expect(geminiThinkingBudget('gemini-2.5-flash')).toBe(0)
-    expect(geminiThinkingBudget('gemini-2.5-flash-lite')).toBe(0)
-    expect(geminiThinkingBudget('gemini-2.5-pro')).toBe(128)
-    expect(geminiThinkingBudget('gemini-2.0-flash')).toBeNull()
+describe('Gemini thinking control', () => {
+  it('uses a budget for 2.5 (0 flash / 128 pro), a level for 3.x+, nothing for older models', () => {
+    expect(geminiThinkingConfig('gemini-2.5-flash')).toEqual({ thinkingBudget: 0 })
+    expect(geminiThinkingConfig('gemini-2.5-flash-lite')).toEqual({ thinkingBudget: 0 })
+    expect(geminiThinkingConfig('gemini-2.5-pro')).toEqual({ thinkingBudget: 128 })
+    expect(geminiThinkingConfig('gemini-3-pro-preview')).toEqual({ thinkingLevel: 'low' })
+    expect(geminiThinkingConfig('gemini-3.8-flash')).toEqual({ thinkingLevel: 'low' })
+    expect(geminiThinkingConfig('gemini-2.0-flash')).toBeNull()
+    expect(geminiThinkingConfig('gemini-1.5-pro')).toBeNull()
+  })
+
+  it('honours env overrides', () => {
+    expect(geminiThinkingConfig('gemini-3.8-flash', { GEMINI_THINKING_LEVEL: 'minimal' })).toEqual({ thinkingLevel: 'minimal' })
+    expect(geminiThinkingConfig('gemini-2.5-flash', { GEMINI_THINKING_BUDGET: '512' })).toEqual({ thinkingBudget: 512 })
     expect(geminiThinkingBudget('gemini-2.5-flash', '512')).toBe(512)
   })
 })
@@ -23,8 +31,17 @@ describe('Gemini response parsing', () => {
     ).toEqual(obj)
   })
 
-  it('reports truncation by finish reason instead of a bare SyntaxError', () => {
-    expect(() => parseGeminiJson(reply('{\n  "headline": "You’re cl', 'MAX_TOKENS'))).toThrow(/finishReason MAX_TOKENS.*truncated/)
+  it('reports truncation by finish reason (with token usage) instead of a bare SyntaxError', () => {
+    const truncated = { ...reply('{\n  "headline": "You’re cl', 'MAX_TOKENS'), usageMetadata: { thoughtsTokenCount: 8100, candidatesTokenCount: 12 } }
+    let err: unknown
+    try {
+      parseGeminiJson(truncated)
+    } catch (e) {
+      err = e
+    }
+    expect(err).toBeInstanceOf(GeminiParseError)
+    expect((err as GeminiParseError).finishReason).toBe('MAX_TOKENS')
+    expect(String(err)).toMatch(/truncated.*thoughts=8100 output=12/)
   })
 
   it('reports blocked prompts', () => {

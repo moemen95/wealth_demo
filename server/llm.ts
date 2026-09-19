@@ -127,20 +127,47 @@ export function vertexGenerateContentUrl(location: string, project: string, mode
 }
 
 /**
- * Thinking budget for Gemini 2.5 models. Their reasoning tokens count against maxOutputTokens, so
- * with thinking left on a tight cap truncates the visible JSON mid-string ("Unterminated string in
- * JSON"). This rewrite task needs no reasoning: flash/flash-lite accept 0 (off); pro's minimum is 128.
- * Override with GEMINI_THINKING_BUDGET.
+ * Thinking control for Gemini. Reasoning ("thinking") tokens count against the output limit, so
+ * with thinking left at its default a short JSON answer can come back truncated (finishReason
+ * MAX_TOKENS, "Unterminated string in JSON") even when we send no cap of our own. This rewrite task
+ * needs no reasoning, so we minimise it:
+ *   - Gemini 2.5.x  → thinkingBudget: 0 (flash / flash-lite) or 128 (pro's minimum)
+ *   - Gemini 3+     → thinkingLevel: "low" (the 3.x API replaced budgets with levels)
+ *   - other models  → nothing sent
+ * Overrides: GEMINI_THINKING_LEVEL (e.g. minimal|low|medium|high) or GEMINI_THINKING_BUDGET (number).
  */
+export type ThinkingConfig = { thinkingBudget: number } | { thinkingLevel: string } | null
+export function geminiThinkingConfig(model: string, env: { GEMINI_THINKING_LEVEL?: string; GEMINI_THINKING_BUDGET?: string } = {}): ThinkingConfig {
+  if (env.GEMINI_THINKING_LEVEL) return { thinkingLevel: env.GEMINI_THINKING_LEVEL }
+  if (env.GEMINI_THINKING_BUDGET !== undefined && env.GEMINI_THINKING_BUDGET !== '') return { thinkingBudget: Number(env.GEMINI_THINKING_BUDGET) }
+  const version = /gemini-(\d+)(?:\.(\d+))?/i.exec(model)
+  if (!version) return null
+  const major = Number(version[1])
+  const minor = Number(version[2] ?? 0)
+  if (major >= 3) return { thinkingLevel: 'low' }
+  if (major === 2 && minor >= 5) return { thinkingBudget: /pro/i.test(model) ? 128 : 0 }
+  return null
+}
+
+/** Kept for callers/tests of the 2.5-era helper. */
 export function geminiThinkingBudget(model: string, override?: string): number | null {
-  if (override !== undefined && override !== '') return Number(override)
-  if (!/gemini-2\.5/i.test(model)) return null // older/other models: don't send thinkingConfig
-  return /pro/i.test(model) ? 128 : 0
+  const cfg = geminiThinkingConfig(model, { GEMINI_THINKING_BUDGET: override })
+  return cfg && 'thinkingBudget' in cfg ? cfg.thinkingBudget : null
 }
 
 export interface GeminiResponse {
   candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] }; finishReason?: string }[]
   promptFeedback?: { blockReason?: string }
+  usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; totalTokenCount?: number }
+}
+
+export class GeminiParseError extends Error {
+  constructor(
+    message: string,
+    public readonly finishReason: string,
+  ) {
+    super(message)
+  }
 }
 
 /** Pull the JSON object out of a generateContent reply, with a diagnostic error instead of a bare SyntaxError. */
@@ -158,8 +185,16 @@ export function parseGeminiJson(data: GeminiResponse): unknown {
     return JSON.parse(text)
   } catch (e) {
     const reason = cand?.finishReason ?? 'unknown'
-    const hint = reason === 'MAX_TOKENS' ? ' (output truncated — unset GEMINI_MAX_OUTPUT_TOKENS and/or set GEMINI_THINKING_BUDGET=0)' : ''
-    throw new Error(`Vertex AI returned non-JSON (finishReason ${reason}${hint}): ${String(e)} — text: ${JSON.stringify(text.slice(0, 160))}`)
+    const u = data.usageMetadata
+    const usage = u ? ` usage: thoughts=${u.thoughtsTokenCount ?? 0} output=${u.candidatesTokenCount ?? 0} prompt=${u.promptTokenCount ?? 0}` : ''
+    const hint =
+      reason === 'MAX_TOKENS'
+        ? ' (output truncated: thinking tokens exhausted the output limit — set GEMINI_THINKING_LEVEL=low / GEMINI_THINKING_BUDGET=0, or raise GEMINI_MAX_OUTPUT_TOKENS)'
+        : ''
+    throw new GeminiParseError(
+      `Vertex AI returned non-JSON (finishReason ${reason}${hint}):${usage} ${String(e)} — text: ${JSON.stringify(text.slice(0, 160))}`,
+      reason,
+    )
   }
 }
 
@@ -168,10 +203,11 @@ function makeGemini(env: Env) {
   const location = env.GOOGLE_CLOUD_LOCATION || 'us-central1'
   const model = env.GEMINI_MODEL || 'gemini-2.5-flash'
   const impersonate = env.GOOGLE_IMPERSONATE_SERVICE_ACCOUNT
-  // No output cap unless explicitly configured: with a cap, thinking tokens can exhaust it and the
-  // JSON comes back truncated (finishReason MAX_TOKENS).
+  // No output cap unless explicitly configured. If a reply still ends in MAX_TOKENS (thinking ate the
+  // model's default limit) the call is retried once with a large explicit limit and thinking minimised.
   const maxOutputTokens = Number(env.GEMINI_MAX_OUTPUT_TOKENS) || undefined
-  const thinkingBudget = geminiThinkingBudget(model, env.GEMINI_THINKING_BUDGET)
+  const thinking = geminiThinkingConfig(model, env)
+  const RETRY_MAX_OUTPUT_TOKENS = 65536
   const auth = new GoogleAuth({ scopes: [CLOUD_SCOPE], projectId: env.GOOGLE_CLOUD_PROJECT || undefined })
 
   let clientPromise: Promise<{ token: () => Promise<string>; project: string }> | null = null
@@ -198,22 +234,44 @@ function makeGemini(env: Env) {
     },
     call: async (req: SummaryRequest): Promise<unknown> => {
       const c = await client()
-      const r = await fetch(vertexGenerateContentUrl(location, c.project, model), {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${await c.token()}` },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemPrompt(req) }] },
-          contents: [{ role: 'user', parts: [{ text: userPrompt(req) }] }],
-          generationConfig: {
-            temperature: 0.4,
-            responseMimeType: 'application/json',
-            ...(maxOutputTokens ? { maxOutputTokens } : {}),
-            ...(thinkingBudget === null ? {} : { thinkingConfig: { thinkingBudget } }),
-          },
-        }),
-      })
-      if (!r.ok) throw new Error(`Vertex AI ${r.status}: ${await r.text()}`)
-      return parseGeminiJson((await r.json()) as GeminiResponse)
+      const url = vertexGenerateContentUrl(location, c.project, model)
+      const token = await c.token()
+
+      const generate = async (cfg: { maxOutputTokens?: number; thinking: ThinkingConfig }): Promise<GeminiResponse> => {
+        const r = await fetch(url, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemPrompt(req) }] },
+            contents: [{ role: 'user', parts: [{ text: userPrompt(req) }] }],
+            generationConfig: {
+              temperature: 0.4,
+              responseMimeType: 'application/json',
+              ...(cfg.maxOutputTokens ? { maxOutputTokens: cfg.maxOutputTokens } : {}),
+              ...(cfg.thinking ? { thinkingConfig: cfg.thinking } : {}),
+            },
+          }),
+        })
+        if (!r.ok) {
+          const body = await r.text()
+          // A model that doesn't accept this thinking parameter (older API / different family) → go without.
+          if (r.status === 400 && cfg.thinking && /thinking/i.test(body)) return generate({ ...cfg, thinking: null })
+          throw new Error(`Vertex AI ${r.status}: ${body}`)
+        }
+        return (await r.json()) as GeminiResponse
+      }
+
+      const first = await generate({ maxOutputTokens, thinking })
+      try {
+        return parseGeminiJson(first)
+      } catch (e) {
+        if (!(e instanceof GeminiParseError) || e.finishReason !== 'MAX_TOKENS') throw e
+        // Thinking exhausted the default output limit: retry with a large explicit limit and the
+        // lowest thinking setting we know for this family, then give up with the diagnostic error.
+        const minimal: ThinkingConfig = thinking && 'thinkingBudget' in thinking ? { thinkingBudget: thinking.thinkingBudget } : { thinkingLevel: 'low' }
+        const second = await generate({ maxOutputTokens: Math.max(maxOutputTokens ?? 0, RETRY_MAX_OUTPUT_TOKENS), thinking: minimal })
+        return parseGeminiJson(second)
+      }
     },
   }
 }

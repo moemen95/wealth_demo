@@ -125,11 +125,50 @@ export function vertexGenerateContentUrl(location: string, project: string, mode
   return `https://${host}/v1/projects/${project}/locations/${location}/publishers/google/models/${model}:generateContent`
 }
 
+/**
+ * Thinking budget for Gemini 2.5 models. Their reasoning tokens count against maxOutputTokens, so
+ * with thinking left on a tight cap truncates the visible JSON mid-string ("Unterminated string in
+ * JSON"). This rewrite task needs no reasoning: flash/flash-lite accept 0 (off); pro's minimum is 128.
+ * Override with GEMINI_THINKING_BUDGET.
+ */
+export function geminiThinkingBudget(model: string, override?: string): number | null {
+  if (override !== undefined && override !== '') return Number(override)
+  if (!/gemini-2\.5/i.test(model)) return null // older/other models: don't send thinkingConfig
+  return /pro/i.test(model) ? 128 : 0
+}
+
+export interface GeminiResponse {
+  candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] }; finishReason?: string }[]
+  promptFeedback?: { blockReason?: string }
+}
+
+/** Pull the JSON object out of a generateContent reply, with a diagnostic error instead of a bare SyntaxError. */
+export function parseGeminiJson(data: GeminiResponse): unknown {
+  if (data.promptFeedback?.blockReason) throw new Error(`Vertex AI blocked the prompt: ${data.promptFeedback.blockReason}`)
+  const cand = data.candidates?.[0]
+  const text = (cand?.content?.parts ?? [])
+    .filter((p) => !p.thought)
+    .map((p) => p.text ?? '')
+    .join('')
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '')
+  try {
+    return JSON.parse(text)
+  } catch (e) {
+    const reason = cand?.finishReason ?? 'unknown'
+    const hint = reason === 'MAX_TOKENS' ? ' (output truncated — raise GEMINI_MAX_OUTPUT_TOKENS or lower GEMINI_THINKING_BUDGET)' : ''
+    throw new Error(`Vertex AI returned non-JSON (finishReason ${reason}${hint}): ${String(e)} — text: ${JSON.stringify(text.slice(0, 160))}`)
+  }
+}
+
 /** Provider: Gemini on Vertex AI, authenticated via ADC (optionally impersonating a service account). */
 function makeGemini(env: Env) {
   const location = env.GOOGLE_CLOUD_LOCATION || 'us-central1'
   const model = env.GEMINI_MODEL || 'gemini-2.5-flash'
   const impersonate = env.GOOGLE_IMPERSONATE_SERVICE_ACCOUNT
+  const maxOutputTokens = Number(env.GEMINI_MAX_OUTPUT_TOKENS) || 2048
+  const thinkingBudget = geminiThinkingBudget(model, env.GEMINI_THINKING_BUDGET)
   const auth = new GoogleAuth({ scopes: [CLOUD_SCOPE], projectId: env.GOOGLE_CLOUD_PROJECT || undefined })
 
   let clientPromise: Promise<{ token: () => Promise<string>; project: string }> | null = null
@@ -162,13 +201,16 @@ function makeGemini(env: Env) {
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: systemPrompt(req) }] },
           contents: [{ role: 'user', parts: [{ text: userPrompt(req) }] }],
-          generationConfig: { temperature: 0.4, maxOutputTokens: 700, responseMimeType: 'application/json' },
+          generationConfig: {
+            temperature: 0.4,
+            maxOutputTokens,
+            responseMimeType: 'application/json',
+            ...(thinkingBudget === null ? {} : { thinkingConfig: { thinkingBudget } }),
+          },
         }),
       })
       if (!r.ok) throw new Error(`Vertex AI ${r.status}: ${await r.text()}`)
-      const data = (await r.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] }
-      const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? ''
-      return JSON.parse(text)
+      return parseGeminiJson((await r.json()) as GeminiResponse)
     },
   }
 }

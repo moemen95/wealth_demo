@@ -38,6 +38,6 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), ...(backend ? [] : [apiPlugin(env)])],
     server: { port, open: false, proxy },
     preview: { port: Number(env.PREVIEW_PORT) || 4173, proxy },
-    test: { environment: 'node', include: ['src/**/*.test.ts'] },
+    test: { environment: 'node', include: ['src/**/*.test.ts', 'server/**/*.test.ts'] },
   }
 })

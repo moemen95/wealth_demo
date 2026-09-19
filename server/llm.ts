@@ -116,6 +116,15 @@ async function callOpenAI(env: Env, req: SummaryRequest): Promise<unknown> {
   return JSON.parse(data.choices[0].message.content)
 }
 
+/**
+ * Vertex AI generateContent endpoint. Regional locations use a region-prefixed host
+ * (`us-central1-aiplatform.googleapis.com`); the `global` location uses the bare host.
+ */
+export function vertexGenerateContentUrl(location: string, project: string, model: string): string {
+  const host = location === 'global' ? 'aiplatform.googleapis.com' : `${location}-aiplatform.googleapis.com`
+  return `https://${host}/v1/projects/${project}/locations/${location}/publishers/google/models/${model}:generateContent`
+}
+
 /** Provider: Gemini on Vertex AI, authenticated via ADC (optionally impersonating a service account). */
 function makeGemini(env: Env) {
   const location = env.GOOGLE_CLOUD_LOCATION || 'us-central1'
@@ -147,8 +156,7 @@ function makeGemini(env: Env) {
     },
     call: async (req: SummaryRequest): Promise<unknown> => {
       const c = await client()
-      const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${c.project}/locations/${location}/publishers/google/models/${model}:generateContent`
-      const r = await fetch(url, {
+      const r = await fetch(vertexGenerateContentUrl(location, c.project, model), {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${await c.token()}` },
         body: JSON.stringify({

@@ -13,10 +13,18 @@ docs/
 ├── context/       Background: product, personas, strategy, POC design, data, engine rules
 ├── deliverables/  The data product, the demo build-prompt, and open questions
 ├── use-cases/     Per-use-case specs (UC1, UC2)
-└── design/        "My Future" screen reference + captured screenshots
+├── design/        "My Future" screen reference + captured screenshots
+└── demo/          Technical documentation of the runnable UC1 demo (this repo's app)
 ```
 
 ## Contents
+
+### demo/ — the runnable UC1 demo, documented
+
+| Doc | What it covers |
+|---|---|
+| [demo/README.md](demo/README.md) | Index: architecture, workflow, simulation engine, AI/LLM, parameters, quality & security, path to production, demo script & FAQ |
+| [demo/00-executive-summary.md](demo/00-executive-summary.md) | The two-minute version for leadership |
 
 ### context/ — background & data foundations
 

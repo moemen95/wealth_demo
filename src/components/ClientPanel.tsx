@@ -14,6 +14,13 @@ interface Props {
   onSelect: (id: SelectedId) => void
   client: ClientInputs
   onChange: (c: ClientInputs) => void
+  /** Form differs from what has been submitted/simulated. */
+  dirty: boolean
+  /** A simulation or summary is in flight. */
+  running: boolean
+  onSubmit: () => void
+  onDiscard: () => void
+  /** Submitted values differ from the selected segment's defaults. */
   edited: boolean
   onReset: () => void
   runs: number
@@ -24,7 +31,7 @@ interface Props {
 
 type NumKey = Exclude<keyof ClientInputs, 'asset_mix' | 'risk_profile'>
 
-export function ClientPanel({ segments, selectedId, onSelect, client, onChange, edited, onReset, runs, onRuns, seed, onSeed }: Props) {
+export function ClientPanel({ segments, selectedId, onSelect, client, onChange, dirty, running, onSubmit, onDiscard, edited, onReset, runs, onRuns, seed, onSeed }: Props) {
   const set = (key: NumKey, raw: string) => {
     const v = Number(raw)
     if (Number.isNaN(v)) return
@@ -57,7 +64,14 @@ export function ClientPanel({ segments, selectedId, onSelect, client, onChange, 
   const mixTotal = client.asset_mix.equity + client.asset_mix.fixed_income + client.asset_mix.cash
 
   return (
-    <aside className="panel">
+    <form
+      className="panel"
+      noValidate // numbers are validated by the engine; native step/min checks would silently block submit
+      onSubmit={(e) => {
+        e.preventDefault()
+        onSubmit()
+      }}
+    >
       <h2>Client / Persona</h2>
       <label className="field">
         <span>Segment</span>
@@ -78,9 +92,20 @@ export function ClientPanel({ segments, selectedId, onSelect, client, onChange, 
           </optgroup>
         </select>
       </label>
-      {edited && (
+      {edited && !dirty && (
         <div className="edited-note">
-          Edited from segment defaults. <button onClick={onReset}>Reset</button>
+          Edited from segment defaults.{' '}
+          <button type="button" onClick={onReset}>
+            Reset
+          </button>
+        </div>
+      )}
+      {dirty && (
+        <div className="edited-note dirty">
+          Unsubmitted changes — press <strong>Run outlook</strong> (or Enter).
+          <button type="button" onClick={onDiscard}>
+            Discard
+          </button>
         </div>
       )}
 
@@ -136,12 +161,26 @@ export function ClientPanel({ segments, selectedId, onSelect, client, onChange, 
         <Field label="Inflation" k="inflation" step={0.1} suffix="%" />
       </div>
 
+      <div className="submit-row">
+        <button type="submit" className="primary" disabled={!dirty || running}>
+          {running ? (
+            <>
+              <i className="spinner light" /> Running…
+            </>
+          ) : dirty ? (
+            'Run outlook'
+          ) : (
+            'Outlook is up to date'
+          )}
+        </button>
+      </div>
+
       <details className="dev">
-        <summary>Dev controls</summary>
+        <summary>Dev controls (apply immediately)</summary>
         <div className="grid2">
           <label className="field">
             <span>Runs</span>
-            <input type="number" value={runs} step={1000} min={100} max={20000} onChange={(e) => onRuns(Math.max(100, Number(e.target.value) || 100))} />
+            <input type="number" value={runs} step={100} min={100} max={20000} onChange={(e) => onRuns(Math.max(100, Number(e.target.value) || 100))} />
           </label>
           <label className="field">
             <span>Seed</span>
@@ -152,6 +191,6 @@ export function ClientPanel({ segments, selectedId, onSelect, client, onChange, 
           Real return = expected − inflation; sampled per year from Normal(mean, volatility). Same seed ⇒ identical paths.
         </p>
       </details>
-    </aside>
+    </form>
   )
 }

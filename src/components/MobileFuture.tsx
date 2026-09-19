@@ -7,24 +7,27 @@ import { FanChart } from './FanChart.tsx'
 import { GoalGauge } from './GoalGauge.tsx'
 import { OutcomeDistribution } from './OutcomeDistribution.tsx'
 import { ScenarioTogglesCard } from './ScenarioToggles.tsx'
+import { RunStatusGadget, type RunStatus } from './RunStatusGadget.tsx'
 
 interface Props {
   result: PipelineResult
   summary: SummaryOutput
   toggles: ScenarioToggles
   onToggles: (t: ScenarioToggles) => void
-  /** True while a real-LLM rewrite is in flight and the templated copy is being shown meanwhile. */
-  llmPending?: boolean
-  llmMode?: 'templated' | 'openai' | 'gemini'
+  status: RunStatus
+  llmMode: 'templated' | 'openai' | 'gemini'
+  llmModel: string | null
 }
 
 const bandClass = (b: string) => (b === 'Good' ? 'good' : b === 'Borderline' ? 'borderline' : 'risk')
 
-export function MobileFuture({ result, summary, toggles, onToggles, llmPending = false, llmMode = 'templated' }: Props) {
+export function MobileFuture({ result, summary, toggles, onToggles, status, llmMode, llmModel }: Props) {
   const [more, setMore] = useState(false)
   const { active } = result
   const k = active.kpis
   const { retirement_age, end_age } = active.inputs
+  const busy = status === 'simulating' || status === 'summarizing'
+  const llmPending = status === 'summarizing' && summary.source === 'templated'
 
   return (
     <section className="phone-col">
@@ -42,7 +45,8 @@ export function MobileFuture({ result, summary, toggles, onToggles, llmPending =
           <span className="active">My Future</span>
         </div>
 
-        <div className="screen">
+        <div className={`screen ${busy ? 'busy' : ''}`} aria-busy={busy}>
+          <RunStatusGadget status={status} runs={active.runs} llmMode={llmMode} llmModel={llmModel} summary={summary} />
           <div className="hero">
             <div className="hero-label">Retirement at {retirement_age}</div>
             <div className="hero-value">{fmtMoney(k.nw_at_retirement)}</div>

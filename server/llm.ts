@@ -103,7 +103,8 @@ async function callOpenAI(env: Env, req: SummaryRequest): Promise<unknown> {
       // GPT-5 / o-series are reasoning models: they reject a custom temperature, and without
       // `reasoning_effort: minimal` a rewrite like this takes ~45 s instead of a few seconds.
       ...(/^(gpt-5|o\d)/i.test(model) ? { reasoning_effort: 'minimal' } : { temperature: 0.4 }),
-      max_completion_tokens: 700,
+      // No cap unless configured — reasoning tokens count against it and would truncate the JSON.
+      ...(Number(env.OPENAI_MAX_COMPLETION_TOKENS) ? { max_completion_tokens: Number(env.OPENAI_MAX_COMPLETION_TOKENS) } : {}),
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: systemPrompt(req) },
@@ -157,7 +158,7 @@ export function parseGeminiJson(data: GeminiResponse): unknown {
     return JSON.parse(text)
   } catch (e) {
     const reason = cand?.finishReason ?? 'unknown'
-    const hint = reason === 'MAX_TOKENS' ? ' (output truncated — raise GEMINI_MAX_OUTPUT_TOKENS or lower GEMINI_THINKING_BUDGET)' : ''
+    const hint = reason === 'MAX_TOKENS' ? ' (output truncated — unset GEMINI_MAX_OUTPUT_TOKENS and/or set GEMINI_THINKING_BUDGET=0)' : ''
     throw new Error(`Vertex AI returned non-JSON (finishReason ${reason}${hint}): ${String(e)} — text: ${JSON.stringify(text.slice(0, 160))}`)
   }
 }
@@ -167,7 +168,9 @@ function makeGemini(env: Env) {
   const location = env.GOOGLE_CLOUD_LOCATION || 'us-central1'
   const model = env.GEMINI_MODEL || 'gemini-2.5-flash'
   const impersonate = env.GOOGLE_IMPERSONATE_SERVICE_ACCOUNT
-  const maxOutputTokens = Number(env.GEMINI_MAX_OUTPUT_TOKENS) || 2048
+  // No output cap unless explicitly configured: with a cap, thinking tokens can exhaust it and the
+  // JSON comes back truncated (finishReason MAX_TOKENS).
+  const maxOutputTokens = Number(env.GEMINI_MAX_OUTPUT_TOKENS) || undefined
   const thinkingBudget = geminiThinkingBudget(model, env.GEMINI_THINKING_BUDGET)
   const auth = new GoogleAuth({ scopes: [CLOUD_SCOPE], projectId: env.GOOGLE_CLOUD_PROJECT || undefined })
 
@@ -203,8 +206,8 @@ function makeGemini(env: Env) {
           contents: [{ role: 'user', parts: [{ text: userPrompt(req) }] }],
           generationConfig: {
             temperature: 0.4,
-            maxOutputTokens,
             responseMimeType: 'application/json',
+            ...(maxOutputTokens ? { maxOutputTokens } : {}),
             ...(thinkingBudget === null ? {} : { thinkingConfig: { thinkingBudget } }),
           },
         }),

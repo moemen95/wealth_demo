@@ -14,7 +14,11 @@ npm i && npm run dev
 ```
 
 Open <http://localhost:5173>. Left column = 30 client segments + **Custom** with every field editable;
-right column = the phone. Any edit or toggle re-runs the Monte Carlo and regenerates the summary live.
+right column = the phone. Field edits are staged until you press **Run outlook** (or Enter); picking a
+segment, flipping a quick-scenario toggle, or changing the dev controls applies immediately. Each run
+shows a status gadget at the top of the phone — *Running N simulations… → Writing your summary with
+OpenAI/Gemini… → Outlook updated* (or "templated summary" if the LLM was unavailable) — so it is
+always clear what is happening and which copy you are looking at.
 
 ### Make targets (all read the root `.env`)
 
